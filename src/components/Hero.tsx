@@ -12,7 +12,7 @@ const Hero = ({ onCtaClick }: { onCtaClick: () => void }) => {
           alt="Panificadora Eliseo – Pan artesanal"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-black/40" />
+        <div className="absolute inset-0 bg-black/20" />
       </div>
 
       {/* Content */}
