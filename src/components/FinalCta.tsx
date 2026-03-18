@@ -17,7 +17,7 @@ const FinalCta = () => (
         Escribinos por WhatsApp y te respondemos al toque
       </p>
       <motion.a
-        href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hola, quiero hacer un pedido")}`}
+        href={`https://api.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${encodeURIComponent("Hola, quiero hacer un pedido")}`}
         target="_blank"
         rel="noopener noreferrer"
         whileHover={{ scale: 1.05 }}

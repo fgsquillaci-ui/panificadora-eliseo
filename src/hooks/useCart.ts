@@ -49,7 +49,7 @@ export function useCart() {
       (i) => `- ${i.product.name} x${i.quantity} ($${(i.product.price * i.quantity).toLocaleString("es-AR")})`
     );
     const message = `Hola, quiero hacer el siguiente pedido:\n${lines.join("\n")}\nTotal: $${totalPrice.toLocaleString("es-AR")}`;
-    return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+    return `https://api.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${encodeURIComponent(message)}`;
   }, [items, totalPrice]);
 
   return {
