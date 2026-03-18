@@ -1,16 +1,17 @@
 import { WHATSAPP_NUMBER } from "@/data/products";
+import logo from "@/assets/logo.png";
 
 const Footer = () => (
   <footer className="py-10 px-6 border-t">
     <div className="container max-w-5xl text-center space-y-3">
-      <h3 className="font-display font-bold text-xl">Panificadora Eliseo</h3>
+      <img src={logo} alt="Panificadora Eliseo" className="h-14 mx-auto mb-2" />
       <p className="text-muted-foreground font-body text-sm">
         Pedidos por encargo – Producción diaria
       </p>
       <p className="text-muted-foreground font-body text-sm">
         WhatsApp:{" "}
         <a
-          href={`https://wa.me/${WHATSAPP_NUMBER}`}
+          href={`https://api.whatsapp.com/send?phone=${WHATSAPP_NUMBER}`}
           target="_blank"
           rel="noopener noreferrer"
           className="text-accent hover:underline"
