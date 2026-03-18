@@ -12,7 +12,7 @@ const Header = ({ totalItems, bounceKey, onCartClick }: Props) => (
   <header className="fixed top-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-b">
     <div className="container flex items-center justify-between h-16 px-5">
       <a href="#" className="flex items-center">
-        <img src={logo} alt="Panificadora Eliseo" className="h-12" />
+        <img src={logo} alt="Panificadora Eliseo" className="h-14" />
       </a>
       <nav className="hidden md:flex gap-6 font-body text-sm">
         <a href="#productos" className="hover:text-accent transition-colors">Productos</a>
