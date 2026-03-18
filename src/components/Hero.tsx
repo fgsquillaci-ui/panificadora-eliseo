@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import heroBread from "@/assets/hero-bread.jpg";
+import logo from "@/assets/logo.png";
 
 const Hero = ({ onCtaClick }: { onCtaClick: () => void }) => {
   return (
@@ -13,23 +14,14 @@ const Hero = ({ onCtaClick }: { onCtaClick: () => void }) => {
         <div className="absolute inset-0 bg-gradient-to-b from-primary/70 via-primary/50 to-primary/80" />
       </div>
       <div className="relative z-10 text-center px-6 max-w-3xl mx-auto">
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="text-accent font-body text-sm tracking-[0.3em] uppercase mb-4"
-        >
-          Panificadora Eliseo
-        </motion.p>
-        <motion.h1
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.7 }}
-          className="text-4xl md:text-6xl lg:text-7xl font-display font-bold text-primary-foreground leading-tight mb-6"
-        >
-          Pan de todos los días,{" "}
-          <span className="italic text-accent">como en casa</span>
-        </motion.h1>
+        <motion.img
+          src={logo}
+          alt="Panificadora Eliseo"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.3, duration: 0.7 }}
+          className="mx-auto h-40 md:h-56 lg:h-64 w-auto mb-8 drop-shadow-2xl"
+        />
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
