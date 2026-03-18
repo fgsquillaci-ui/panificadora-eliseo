@@ -12,7 +12,7 @@ const Hero = ({ onCtaClick }: { onCtaClick: () => void }) => {
           alt="Panificadora Eliseo – Pan artesanal"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-black/40" />
+        <div className="absolute inset-0 bg-black/20" />
       </div>
 
       {/* Content */}
@@ -24,7 +24,7 @@ const Hero = ({ onCtaClick }: { onCtaClick: () => void }) => {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 0.9, scale: 1 }}
           transition={{ duration: 1 }}
-          className="mx-auto w-64 md:w-80 drop-shadow-[0_10px_25px_rgba(0,0,0,0.6)] mix-blend-screen"
+          className="mx-auto w-64 md:w-80 opacity-90 mix-blend-screen drop-shadow-[0_8px_20px_rgba(0,0,0,0.5)]"
         />
 
         {/* Tagline */}
