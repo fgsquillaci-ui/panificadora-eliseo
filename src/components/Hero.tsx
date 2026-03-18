@@ -11,7 +11,7 @@ const Hero = ({ onCtaClick }: { onCtaClick: () => void }) => {
           alt="Pan artesanal recién horneado"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[hsl(30,20%,15%)]/30 via-transparent to-[hsl(30,20%,10%)]/50" />
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/70 via-primary/50 to-primary/80" />
       </div>
       <div className="relative z-10 text-center px-6 max-w-3xl mx-auto">
         <motion.img
