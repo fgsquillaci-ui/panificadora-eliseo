@@ -1,39 +1,34 @@
 import { motion } from "framer-motion";
 import heroBread from "@/assets/hero-bread.jpg";
-import logo from "@/assets/logo.png";
 
 const Hero = ({ onCtaClick }: { onCtaClick: () => void }) => {
   return (
-    <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden">
+    <section className="relative w-full h-screen flex items-end justify-center text-center pb-20">
+      {/* Background — la imagen YA contiene el logo integrado */}
       <div className="absolute inset-0">
         <img
           src={heroBread}
-          alt="Pan artesanal recién horneado"
+          alt="Panificadora Eliseo – Pan artesanal"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/70 via-primary/50 to-primary/80" />
+        <div className="absolute inset-0 bg-black/20" />
       </div>
-      <div className="relative z-10 text-center px-6 max-w-3xl mx-auto">
-        <motion.img
-          src={logo}
-          alt="Panificadora Eliseo"
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3, duration: 0.7 }}
-          className="mx-auto h-40 md:h-56 lg:h-64 w-auto mb-8 drop-shadow-2xl"
-        />
+
+      {/* Content flotante en la parte inferior */}
+      <div className="relative z-10 px-6 max-w-2xl mx-auto">
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="text-lg md:text-xl text-primary-foreground/90 font-body font-light mb-10"
+          transition={{ delay: 0.6, duration: 0.8 }}
+          className="text-lg md:text-xl font-body font-light mb-8"
+          style={{ color: "rgba(244, 237, 228, 0.9)" }}
         >
           Pan fresco todos los días, sin conservantes
         </motion.p>
         <motion.button
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.8 }}
+          transition={{ delay: 1, duration: 0.5 }}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onCtaClick}
