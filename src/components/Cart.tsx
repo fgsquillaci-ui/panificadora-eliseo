@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingCart, X, Plus, Minus, Trash2, MessageCircle } from "lucide-react";
 import type { CartItem } from "@/hooks/useCart";
+import { getEffectivePrice, WHOLESALE_MIN_QTY } from "@/data/products";
 
 interface Props {
   items: CartItem[];
@@ -29,7 +30,7 @@ const Cart = ({
 }: Props) => {
   return (
     <>
-      {/* Floating cart button - mobile */}
+      {/* Floating cart button */}
       <motion.button
         key={bounceKey}
         animate={bounceKey > 0 ? { scale: [1, 1.25, 1] } : {}}
@@ -80,56 +81,79 @@ const Cart = ({
                     <p className="text-sm mt-1">Agregá productos del catálogo</p>
                   </div>
                 ) : (
-                  items.map((item) => (
-                    <motion.div
-                      key={item.product.id}
-                      layout
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      className="bg-card rounded-lg p-4 shadow-sm"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl">{item.product.emoji}</span>
-                          <div>
-                            <h4 className="font-body font-semibold text-sm">{item.product.name}</h4>
-                            <p className="text-muted-foreground text-xs">
-                              ${item.product.price.toLocaleString("es-AR")} c/u
-                            </p>
+                  items.map((item) => {
+                    const effectivePrice = getEffectivePrice(item.product, item.quantity);
+                    const isWholesale = item.quantity >= WHOLESALE_MIN_QTY && !!item.product.wholesalePrice;
+
+                    return (
+                      <motion.div
+                        key={item.product.id}
+                        layout
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        className="bg-card rounded-lg p-4 shadow-sm"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl">{item.product.emoji}</span>
+                            <div>
+                              <h4 className="font-body font-semibold text-sm">{item.product.name}</h4>
+                              <div className="flex items-center gap-2">
+                                {isWholesale ? (
+                                  <>
+                                    <span className="text-muted-foreground text-xs line-through">
+                                      ${item.product.price.toLocaleString("es-AR")}
+                                    </span>
+                                    <span className="text-accent text-xs font-semibold">
+                                      ${effectivePrice.toLocaleString("es-AR")} c/u
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">
+                                    ${effectivePrice.toLocaleString("es-AR")} c/u
+                                  </span>
+                                )}
+                              </div>
+                              {isWholesale && (
+                                <span className="inline-block mt-1 text-[10px] font-body font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">
+                                  Precio mayorista
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <button
-                          onClick={() => onRemoveItem(item.product.id)}
-                          className="text-muted-foreground hover:text-destructive p-1 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 bg-secondary rounded-full px-1 py-1">
                           <button
-                            onClick={() => onUpdateQuantity(item.product.id, item.quantity - 1)}
-                            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-background transition-colors"
+                            onClick={() => onRemoveItem(item.product.id)}
+                            className="text-muted-foreground hover:text-destructive p-1 transition-colors"
                           >
-                            <Minus className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
-                          <span className="font-body font-semibold text-sm w-6 text-center">
-                            {item.quantity}
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 bg-secondary rounded-full px-1 py-1">
+                            <button
+                              onClick={() => onUpdateQuantity(item.product.id, item.quantity - 1)}
+                              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-background transition-colors"
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="font-body font-semibold text-sm w-6 text-center">
+                              {item.quantity}
+                            </span>
+                            <button
+                              onClick={() => onUpdateQuantity(item.product.id, item.quantity + 1)}
+                              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-background transition-colors"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <span className="font-body font-bold text-accent">
+                            ${(effectivePrice * item.quantity).toLocaleString("es-AR")}
                           </span>
-                          <button
-                            onClick={() => onUpdateQuantity(item.product.id, item.quantity + 1)}
-                            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-background transition-colors"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                          </button>
                         </div>
-                        <span className="font-body font-bold text-accent">
-                          ${(item.product.price * item.quantity).toLocaleString("es-AR")}
-                        </span>
-                      </div>
-                    </motion.div>
-                  ))
+                      </motion.div>
+                    );
+                  })
                 )}
               </div>
 

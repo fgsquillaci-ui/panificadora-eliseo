@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import type { Product } from "@/data/products";
-import { WHATSAPP_NUMBER } from "@/data/products";
+import { WHATSAPP_NUMBER, getEffectivePrice, WHOLESALE_MIN_QTY } from "@/data/products";
 
 export interface CartItem {
   product: Product;
@@ -41,13 +41,19 @@ export function useCart() {
   const clearCart = useCallback(() => setItems([]), []);
 
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
-  const totalPrice = items.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
+  const totalPrice = items.reduce(
+    (sum, i) => sum + getEffectivePrice(i.product, i.quantity) * i.quantity,
+    0
+  );
 
   const getWhatsAppUrl = useCallback(() => {
     if (items.length === 0) return "";
-    const lines = items.map(
-      (i) => `- ${i.product.name} x${i.quantity} ($${(i.product.price * i.quantity).toLocaleString("es-AR")})`
-    );
+    const lines = items.map((i) => {
+      const effectivePrice = getEffectivePrice(i.product, i.quantity);
+      const isWholesale = i.quantity >= WHOLESALE_MIN_QTY && i.product.wholesalePrice;
+      const subtotal = effectivePrice * i.quantity;
+      return `- ${i.product.name} x${i.quantity} ($${subtotal.toLocaleString("es-AR")})${isWholesale ? " [mayorista]" : ""}`;
+    });
     const message = `Hola, quiero hacer el siguiente pedido:\n${lines.join("\n")}\nTotal: $${totalPrice.toLocaleString("es-AR")}`;
     return `https://api.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${encodeURIComponent(message)}`;
   }, [items, totalPrice]);
