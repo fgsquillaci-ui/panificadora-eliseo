@@ -130,6 +130,11 @@ const CheckoutForm = ({ profile, whatsAppUrl, onBack, onDataChange }: Props) => 
         {/* Datos del cliente */}
         <div className="space-y-4">
           <Label className="font-body font-semibold text-sm">👤 Datos del cliente</Label>
+          {profile && (
+            <p className="text-xs text-muted-foreground bg-secondary/50 px-3 py-2 rounded-md">
+              ✅ Datos completados desde tu perfil
+            </p>
+          )}
           <div className="space-y-2">
             <Label htmlFor="customerName" className="font-body text-sm">
               Nombre <span className="text-destructive">*</span>

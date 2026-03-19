@@ -28,9 +28,10 @@ export const products: Product[] = [
   {
     id: "ciabattas",
     name: "Ciabattas",
-    description: "Pan italiano crujiente por fuera y esponjoso por dentro.",
+    description: "Pan italiano crujiente por fuera y esponjoso por dentro. Pack de 3 unidades.",
     price: 3000,
     wholesalePrice: 700,
+    unit: "x3",
     category: "panes",
     emoji: "🥖",
   },
