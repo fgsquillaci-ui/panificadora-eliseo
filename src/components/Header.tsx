@@ -22,6 +22,7 @@ const Header = ({ totalItems, bounceKey, onCartClick, profile, isLoggedIn, onSig
       <nav className="hidden md:flex gap-6 font-body text-sm">
         <a href="#productos" className="hover:text-accent transition-colors">Productos</a>
         <a href="#como-funciona" className="hover:text-accent transition-colors">Cómo funciona</a>
+        <a href="#quienes-somos" className="hover:text-accent transition-colors">Quiénes somos</a>
       </nav>
       <div className="flex items-center gap-2">
         {isLoggedIn ? (
