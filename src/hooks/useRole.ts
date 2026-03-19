@@ -27,12 +27,13 @@ export function useRole(userId: string | undefined) {
   }, [userId, fetchRoles]);
 
   const hasRole = useCallback(
-    (r: AppRole) => roles.includes(r),
+    (r: AppRole) => (roles ?? []).includes(r),
     [roles]
   );
 
   // Keep backward-compat: `role` returns the first role or null
-  const role = roles.length > 0 ? roles[0] : null;
+  const safeRoles = roles ?? [];
+  const role = safeRoles.length > 0 ? safeRoles[0] : null;
 
   return { role, roles, loading, hasRole, refetch: () => userId ? fetchRoles(userId) : Promise.resolve() };
 }
