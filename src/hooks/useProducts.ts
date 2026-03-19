@@ -16,7 +16,7 @@ export function useProducts() {
         return fallbackProducts.filter(p => p.price > 0);
       }
 
-      return data.map((p) => ({
+      return data.filter(p => p.retail_price != null).map((p) => ({
         id: p.id,
         name: p.name,
         description: p.description || "",
