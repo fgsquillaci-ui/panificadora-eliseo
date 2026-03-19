@@ -79,7 +79,7 @@ const ProductCatalog = ({ onAddToCart, isLoggedIn }: Props) => {
                   <div className="flex items-start justify-between mb-1">
                     <h3 className="font-display font-semibold text-lg">{product.name}</h3>
                     <span className="font-body font-bold text-accent text-lg">
-                      ${product.price.toLocaleString("es-AR")}
+                      ${product.price.toLocaleString("es-AR")}{" "}
                     </span>
                   </div>
                   {product.unit && (
