@@ -16,7 +16,7 @@ import { useRole } from "@/hooks/useRole";
 const Index = () => {
   const cart = useCart();
   const { user, profile, signOut } = useAuth();
-  const { role } = useRole(user?.id);
+  const { roles } = useRole(user?.id);
   const [cartOpen, setCartOpen] = useState(false);
 
   const discountPercent = profile?.discount_percent ?? 0;
