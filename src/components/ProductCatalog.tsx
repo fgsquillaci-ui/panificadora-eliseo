@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { products, categories, type Product, WHOLESALE_MIN_QTY } from "@/data/products";
+import { categories, type Product, WHOLESALE_MIN_QTY } from "@/data/products";
+import { useProducts } from "@/hooks/useProducts";
 
 interface Props {
   onAddToCart: (product: Product) => void;
@@ -8,6 +9,7 @@ interface Props {
 
 const ProductCatalog = ({ onAddToCart }: Props) => {
   const [activeCategory, setActiveCategory] = useState<string>("panes");
+  const { data: products = [], isLoading } = useProducts();
 
   const filtered = products.filter((p) => p.category === activeCategory);
 
