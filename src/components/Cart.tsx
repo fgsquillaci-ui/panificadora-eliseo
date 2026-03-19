@@ -1,12 +1,15 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingCart, X, Plus, Minus, Trash2, MessageCircle } from "lucide-react";
 import type { CartItem } from "@/hooks/useCart";
+import type { Profile } from "@/hooks/useAuth";
 import { getEffectivePrice, WHOLESALE_MIN_QTY } from "@/data/products";
 
 interface Props {
   items: CartItem[];
   totalItems: number;
+  subtotal: number;
   totalPrice: number;
+  discountPercent: number;
   bounceKey: number;
   isOpen: boolean;
   onToggle: () => void;
@@ -19,7 +22,9 @@ interface Props {
 const Cart = ({
   items,
   totalItems,
+  subtotal,
   totalPrice,
+  discountPercent,
   bounceKey,
   isOpen,
   onToggle,
@@ -160,6 +165,19 @@ const Cart = ({
               {/* Footer */}
               {items.length > 0 && (
                 <div className="border-t p-5 space-y-4">
+                  {discountPercent > 0 && (
+                    <div className="bg-accent/10 rounded-lg p-3 text-center">
+                      <span className="font-body text-sm font-semibold text-accent">
+                        🎉 Descuento cliente: {discountPercent}%
+                      </span>
+                      <div className="flex items-center justify-between mt-1 text-sm font-body">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span className="text-muted-foreground line-through">
+                          ${subtotal.toLocaleString("es-AR")}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <span className="font-body font-medium">Total</span>
                     <span className="font-display font-bold text-2xl">

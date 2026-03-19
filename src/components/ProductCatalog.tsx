@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "react-router-dom";
 import { categories, type Product, WHOLESALE_MIN_QTY } from "@/data/products";
 import { useProducts } from "@/hooks/useProducts";
 
 interface Props {
   onAddToCart: (product: Product) => void;
+  isLoggedIn?: boolean;
 }
 
-const ProductCatalog = ({ onAddToCart }: Props) => {
+const ProductCatalog = ({ onAddToCart, isLoggedIn }: Props) => {
   const [activeCategory, setActiveCategory] = useState<string>("panes");
   const { data: products = [], isLoading } = useProducts();
 
@@ -24,9 +26,21 @@ const ProductCatalog = ({ onAddToCart }: Props) => {
         >
           Nuestros <span className="text-accent">Productos</span>
         </motion.h2>
-        <p className="text-center text-muted-foreground font-body mb-10">
+        <p className="text-center text-muted-foreground font-body mb-6">
           Elegí lo que más te guste y armá tu pedido
         </p>
+
+        {!isLoggedIn && (
+          <div className="text-center mb-10">
+            <Link
+              to="/registro"
+              className="inline-block font-body text-sm bg-accent/10 text-accent font-semibold px-5 py-2.5 rounded-full hover:bg-accent/20 transition-colors"
+            >
+              🎁 ¿Querés descuentos especiales? Registrate gratis
+            </Link>
+          </div>
+        )}
+        {isLoggedIn && <div className="mb-10" />}
 
         {/* Category tabs */}
         <div className="flex justify-center gap-3 mb-12 flex-wrap">
