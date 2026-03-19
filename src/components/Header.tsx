@@ -40,6 +40,15 @@ const Header = ({ totalItems, bounceKey, onCartClick, profile, isLoggedIn, onSig
                 -{profile.discount_percent}%
               </span>
             )}
+            {panelPath && (
+              <Link
+                to={panelPath}
+                className="p-2 hover:bg-secondary rounded-full transition-colors"
+                title="Mi panel"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+              </Link>
+            )}
             <button
               onClick={onSignOut}
               className="p-2 hover:bg-secondary rounded-full transition-colors"
@@ -74,6 +83,7 @@ const Header = ({ totalItems, bounceKey, onCartClick, profile, isLoggedIn, onSig
       </div>
     </div>
   </header>
-);
+  );
+};
 
 export default Header;
