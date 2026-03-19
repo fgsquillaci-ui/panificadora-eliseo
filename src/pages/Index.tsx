@@ -11,10 +11,12 @@ import Header from "@/components/Header";
 import Cart from "@/components/Cart";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
+import { useRole } from "@/hooks/useRole";
 
 const Index = () => {
   const cart = useCart();
   const { user, profile, signOut } = useAuth();
+  const { role } = useRole(user?.id);
   const [cartOpen, setCartOpen] = useState(false);
 
   const discountPercent = profile?.discount_percent ?? 0;
@@ -33,6 +35,7 @@ const Index = () => {
         profile={profile}
         isLoggedIn={!!user}
         onSignOut={signOut}
+        role={role}
       />
       <Hero onCtaClick={scrollToProducts} />
       <ValueProposition />

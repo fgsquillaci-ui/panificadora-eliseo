@@ -1,8 +1,9 @@
-import { ShoppingCart, User, LogOut } from "lucide-react";
+import { ShoppingCart, User, LogOut, LayoutDashboard } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 import type { Profile } from "@/hooks/useAuth";
+import type { AppRole } from "@/hooks/useRole";
 
 interface Props {
   totalItems: number;
@@ -11,9 +12,13 @@ interface Props {
   profile: Profile | null;
   isLoggedIn: boolean;
   onSignOut: () => void;
+  role?: AppRole | null;
 }
 
-const Header = ({ totalItems, bounceKey, onCartClick, profile, isLoggedIn, onSignOut }: Props) => (
+const Header = ({ totalItems, bounceKey, onCartClick, profile, isLoggedIn, onSignOut, role }: Props) => {
+  const panelPath = role === "admin" ? "/admin" : role === "revendedor" ? "/revendedor" : role === "delivery" ? "/delivery" : null;
+
+  return (
   <header className="fixed top-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-b">
     <div className="container flex items-center justify-between h-16 px-5">
       <a href="#" className="flex items-center">
@@ -34,6 +39,15 @@ const Header = ({ totalItems, bounceKey, onCartClick, profile, isLoggedIn, onSig
               <span className="hidden sm:inline text-[10px] font-body font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">
                 -{profile.discount_percent}%
               </span>
+            )}
+            {panelPath && (
+              <Link
+                to={panelPath}
+                className="p-2 hover:bg-secondary rounded-full transition-colors"
+                title="Mi panel"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+              </Link>
             )}
             <button
               onClick={onSignOut}
@@ -69,6 +83,7 @@ const Header = ({ totalItems, bounceKey, onCartClick, profile, isLoggedIn, onSig
       </div>
     </div>
   </header>
-);
+  );
+};
 
 export default Header;
