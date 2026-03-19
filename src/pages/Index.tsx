@@ -35,7 +35,7 @@ const Index = () => {
         profile={profile}
         isLoggedIn={!!user}
         onSignOut={signOut}
-        role={role}
+        roles={roles}
       />
       <Hero onCtaClick={scrollToProducts} />
       <ValueProposition />
