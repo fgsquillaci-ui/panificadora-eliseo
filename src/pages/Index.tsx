@@ -4,6 +4,7 @@ import ValueProposition from "@/components/ValueProposition";
 import ProductCatalog from "@/components/ProductCatalog";
 import HowItWorks from "@/components/HowItWorks";
 import TrustSection from "@/components/TrustSection";
+import AboutUs from "@/components/AboutUs";
 import FinalCta from "@/components/FinalCta";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
@@ -40,6 +41,9 @@ const Index = () => {
         <HowItWorks />
       </div>
       <TrustSection />
+      <div id="quienes-somos">
+        <AboutUs />
+      </div>
       <FinalCta />
       <Footer />
       <Cart
