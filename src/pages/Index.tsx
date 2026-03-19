@@ -41,6 +41,9 @@ const Index = () => {
         <HowItWorks />
       </div>
       <TrustSection />
+      <div id="quienes-somos">
+        <AboutUs />
+      </div>
       <FinalCta />
       <Footer />
       <Cart
