@@ -9,10 +9,15 @@ import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import Cart from "@/components/Cart";
 import { useCart } from "@/hooks/useCart";
+import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
   const cart = useCart();
+  const { user, profile, signOut } = useAuth();
   const [cartOpen, setCartOpen] = useState(false);
+
+  const discountPercent = profile?.discount_percent ?? 0;
+  const totalPrice = cart.getTotalPrice(profile);
 
   const scrollToProducts = () => {
     document.getElementById("productos")?.scrollIntoView({ behavior: "smooth" });
@@ -24,10 +29,13 @@ const Index = () => {
         totalItems={cart.totalItems}
         bounceKey={cart.bounceKey}
         onCartClick={() => setCartOpen(true)}
+        profile={profile}
+        isLoggedIn={!!user}
+        onSignOut={signOut}
       />
       <Hero onCtaClick={scrollToProducts} />
       <ValueProposition />
-      <ProductCatalog onAddToCart={cart.addItem} />
+      <ProductCatalog onAddToCart={cart.addItem} isLoggedIn={!!user} />
       <div id="como-funciona">
         <HowItWorks />
       </div>
@@ -37,14 +45,16 @@ const Index = () => {
       <Cart
         items={cart.items}
         totalItems={cart.totalItems}
-        totalPrice={cart.totalPrice}
+        subtotal={cart.subtotal}
+        totalPrice={totalPrice}
+        discountPercent={discountPercent}
         bounceKey={cart.bounceKey}
         isOpen={cartOpen}
         onToggle={() => setCartOpen(!cartOpen)}
         onUpdateQuantity={cart.updateQuantity}
         onRemoveItem={cart.removeItem}
         onClear={cart.clearCart}
-        whatsAppUrl={cart.getWhatsAppUrl()}
+        whatsAppUrl={cart.getWhatsAppUrl(profile)}
       />
     </div>
   );

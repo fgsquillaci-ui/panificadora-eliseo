@@ -1,14 +1,19 @@
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, User, LogOut } from "lucide-react";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
+import type { Profile } from "@/hooks/useAuth";
 
 interface Props {
   totalItems: number;
   bounceKey: number;
   onCartClick: () => void;
+  profile: Profile | null;
+  isLoggedIn: boolean;
+  onSignOut: () => void;
 }
 
-const Header = ({ totalItems, bounceKey, onCartClick }: Props) => (
+const Header = ({ totalItems, bounceKey, onCartClick, profile, isLoggedIn, onSignOut }: Props) => (
   <header className="fixed top-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-b">
     <div className="container flex items-center justify-between h-16 px-5">
       <a href="#" className="flex items-center">
@@ -18,20 +23,49 @@ const Header = ({ totalItems, bounceKey, onCartClick }: Props) => (
         <a href="#productos" className="hover:text-accent transition-colors">Productos</a>
         <a href="#como-funciona" className="hover:text-accent transition-colors">Cómo funciona</a>
       </nav>
-      <button onClick={onCartClick} className="relative p-2 hover:bg-secondary rounded-full transition-colors">
-        <motion.div
-          key={bounceKey}
-          animate={bounceKey > 0 ? { scale: [1, 1.3, 1] } : {}}
-          transition={{ duration: 0.3 }}
-        >
-          <ShoppingCart className="w-5 h-5" />
-        </motion.div>
-        {totalItems > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 bg-accent text-accent-foreground text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
-            {totalItems}
-          </span>
+      <div className="flex items-center gap-2">
+        {isLoggedIn ? (
+          <div className="flex items-center gap-2">
+            <span className="hidden sm:inline font-body text-sm font-medium truncate max-w-[120px]">
+              {profile?.name || "Mi cuenta"}
+            </span>
+            {profile && profile.discount_percent > 0 && (
+              <span className="hidden sm:inline text-[10px] font-body font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">
+                -{profile.discount_percent}%
+              </span>
+            )}
+            <button
+              onClick={onSignOut}
+              className="p-2 hover:bg-secondary rounded-full transition-colors"
+              title="Cerrar sesión"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <Link
+            to="/login"
+            className="flex items-center gap-1.5 font-body text-sm font-medium px-3 py-1.5 rounded-full hover:bg-secondary transition-colors"
+          >
+            <User className="w-4 h-4" />
+            <span className="hidden sm:inline">Ingresar</span>
+          </Link>
         )}
-      </button>
+        <button onClick={onCartClick} className="relative p-2 hover:bg-secondary rounded-full transition-colors">
+          <motion.div
+            key={bounceKey}
+            animate={bounceKey > 0 ? { scale: [1, 1.3, 1] } : {}}
+            transition={{ duration: 0.3 }}
+          >
+            <ShoppingCart className="w-5 h-5" />
+          </motion.div>
+          {totalItems > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 bg-accent text-accent-foreground text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+              {totalItems}
+            </span>
+          )}
+        </button>
+      </div>
     </div>
   </header>
 );

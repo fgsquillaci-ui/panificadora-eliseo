@@ -9,7 +9,7 @@ interface Props {
   isLoggedIn?: boolean;
 }
 
-const ProductCatalog = ({ onAddToCart }: Props) => {
+const ProductCatalog = ({ onAddToCart, isLoggedIn }: Props) => {
   const [activeCategory, setActiveCategory] = useState<string>("panes");
   const { data: products = [], isLoading } = useProducts();
 

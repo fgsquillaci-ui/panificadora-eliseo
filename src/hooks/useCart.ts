@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import type { Product } from "@/data/products";
 import { WHATSAPP_NUMBER, getEffectivePrice, WHOLESALE_MIN_QTY } from "@/data/products";
+import type { Profile } from "@/hooks/useAuth";
 
 export interface CartItem {
   product: Product;
@@ -41,22 +42,41 @@ export function useCart() {
   const clearCart = useCallback(() => setItems([]), []);
 
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
-  const totalPrice = items.reduce(
+  const subtotal = items.reduce(
     (sum, i) => sum + getEffectivePrice(i.product, i.quantity) * i.quantity,
     0
   );
 
-  const getWhatsAppUrl = useCallback(() => {
-    if (items.length === 0) return "";
-    const lines = items.map((i) => {
-      const effectivePrice = getEffectivePrice(i.product, i.quantity);
-      const isWholesale = i.quantity >= WHOLESALE_MIN_QTY && i.product.wholesalePrice;
-      const subtotal = effectivePrice * i.quantity;
-      return `- ${i.product.name} x${i.quantity} ($${subtotal.toLocaleString("es-AR")})${isWholesale ? " [mayorista]" : ""}`;
-    });
-    const message = `Hola, quiero hacer el siguiente pedido:\n${lines.join("\n")}\nTotal: $${totalPrice.toLocaleString("es-AR")}`;
-    return `https://api.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${encodeURIComponent(message)}`;
-  }, [items, totalPrice]);
+  const getTotalPrice = useCallback(
+    (profile: Profile | null) => {
+      if (profile && profile.discount_percent > 0) {
+        return Math.round(subtotal * (1 - profile.discount_percent / 100));
+      }
+      return subtotal;
+    },
+    [subtotal]
+  );
+
+  const getWhatsAppUrl = useCallback(
+    (profile: Profile | null) => {
+      if (items.length === 0) return "";
+      const total = getTotalPrice(profile);
+      const lines = items.map((i) => {
+        const effectivePrice = getEffectivePrice(i.product, i.quantity);
+        const isWholesale = i.quantity >= WHOLESALE_MIN_QTY && i.product.wholesalePrice;
+        const itemTotal = effectivePrice * i.quantity;
+        return `- ${i.product.name} x${i.quantity} ($${itemTotal.toLocaleString("es-AR")})${isWholesale ? " [mayorista]" : ""}`;
+      });
+      const clientLine = profile?.name ? `\nCliente: ${profile.name}` : "";
+      const discountLine =
+        profile && profile.discount_percent > 0
+          ? `\nDescuento cliente: ${profile.discount_percent}%`
+          : "";
+      const message = `Hola, quiero hacer el siguiente pedido:${clientLine}\n${lines.join("\n")}${discountLine}\nTotal: $${total.toLocaleString("es-AR")}`;
+      return `https://api.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${encodeURIComponent(message)}`;
+    },
+    [items, getTotalPrice]
+  );
 
   return {
     items,
@@ -65,7 +85,8 @@ export function useCart() {
     updateQuantity,
     clearCart,
     totalItems,
-    totalPrice,
+    subtotal,
+    getTotalPrice,
     bounceKey,
     getWhatsAppUrl,
   };
