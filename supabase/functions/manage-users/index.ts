@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
       
       const { error: updateAuthErr } = await supabaseAdmin.auth.admin.updateUserById(revendedorId, {
         email: "choyleonivas@gmail.com",
-        password: "Choy.",
+        password: "Choy.1",
         email_confirm: true,
       });
       if (updateAuthErr) throw new Error(`Update auth: ${updateAuthErr.message}`);
@@ -38,20 +38,32 @@ Deno.serve(async (req) => {
       if (updateProfileErr) throw new Error(`Update profile: ${updateProfileErr.message}`);
       results.push("✅ Revendedor profile name updated");
 
-      // 2. Create new admin user
+      // 2. Create or find admin user
+      let adminUserId: string;
       const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
         email: "santana2022eliseo@gmail.com",
         password: "Turulo",
         email_confirm: true,
         user_metadata: { name: "Eliseo Santana", phone: "" },
       });
-      if (createErr) throw new Error(`Create user: ${createErr.message}`);
-      results.push(`✅ Admin user created: ${newUser.user.id}`);
+      if (createErr) {
+        // User already exists, find them
+        const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+        const existing = listData?.users?.find((u: any) => u.email === "santana2022eliseo@gmail.com");
+        if (!existing) throw new Error("Could not find or create admin user");
+        adminUserId = existing.id;
+        // Update password
+        await supabaseAdmin.auth.admin.updateUserById(adminUserId, { password: "Turulo", email_confirm: true });
+        results.push(`✅ Admin user found & updated: ${adminUserId}`);
+      } else {
+        adminUserId = newUser.user.id;
+        results.push(`✅ Admin user created: ${adminUserId}`);
+      }
 
-      // 3. Assign admin role
+      // 3. Assign admin role (upsert)
       const { error: roleErr } = await supabaseAdmin
         .from("user_roles")
-        .insert({ user_id: newUser.user.id, role: "admin" });
+        .upsert({ user_id: adminUserId, role: "admin" }, { onConflict: "user_id,role" });
       if (roleErr) throw new Error(`Assign role: ${roleErr.message}`);
       results.push("✅ Admin role assigned");
     }
