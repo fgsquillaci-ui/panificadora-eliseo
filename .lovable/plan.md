@@ -1,20 +1,30 @@
 
 
-## Limpiar registros de pedidos
+## Plan: Gestionar usuarios de autenticación
 
-Voy a eliminar todos los datos de las tablas relacionadas con pedidos para dejar los dashboards limpios.
+### Lo que se necesita
 
-### Operacion
+1. **Cambiar email de "Revendedor 1"** (id: `b0b8da90-...`) de `revendedor1@gmail.com` → `choyleonivas@gmail.com` y su contraseña a `Choy.`
+2. **Crear nuevo usuario admin** `santana2022eliseo@gmail.com` con contraseña `Turulo` y asignarle rol `admin`
 
-Ejecutar DELETE en este orden (por dependencias de foreign keys):
+### Cómo se implementará
 
-1. `DELETE FROM order_items` — eliminar items de pedidos
-2. `DELETE FROM deliveries` — eliminar asignaciones de entregas
-3. `DELETE FROM orders` — eliminar todos los pedidos
+Estas operaciones requieren la API de administración de autenticación (service role key). Se creará una **backend function** (`manage-users`) que:
 
-### Resultado
+1. Recibe las operaciones a realizar
+2. Usa el service role key para:
+   - Actualizar email y password del usuario existente (Revendedor 1)
+   - Actualizar su nombre en profiles a "Choy"
+   - Crear el nuevo usuario con email confirmado automáticamente
+   - Insertar su perfil en `profiles`
+   - Asignarle rol `admin` en `user_roles`
+3. Se invoca una sola vez y luego queda disponible para futuras gestiones
 
-- Los 3 dashboards (admin, revendedor, delivery) quedaran vacios y listos para usar
-- No se modifica ninguna tabla de productos, usuarios ni perfiles
-- No se cambia estructura de base de datos, solo se borran datos
+### Archivos
+
+| Archivo | Cambio |
+|---------|--------|
+| `supabase/functions/manage-users/index.ts` | **Nuevo** - Edge function para gestión de usuarios |
+
+Después de deployar la function, se ejecutará para aplicar los cambios.
 
