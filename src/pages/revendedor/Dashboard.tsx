@@ -1,34 +1,14 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import OrderDetail from "@/components/OrderDetail";
 import CreateOrderForm from "@/components/CreateOrderForm";
+import { useRealtimeOrders } from "@/hooks/useRealtimeOrders";
 import { Package, CheckCircle, Clock, DollarSign, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 type OrderStatus = "pendiente" | "en_produccion" | "listo" | "en_delivery" | "entregado";
-
-interface Order {
-  id: string;
-  status: OrderStatus;
-  total: number;
-  created_at: string;
-  delivery_type: string;
-  customer_name: string;
-  customer_phone: string | null;
-  address: string | null;
-  address_references: string | null;
-}
-
-const statusLabels: Record<OrderStatus, string> = {
-  pendiente: "Pendiente",
-  en_produccion: "En producción",
-  listo: "Listo",
-  en_delivery: "En delivery",
-  entregado: "Entregado",
-};
 
 const filterOptions: { label: string; value: OrderStatus | "todos" }[] = [
   { label: "Todos", value: "todos" },
@@ -41,27 +21,9 @@ const filterOptions: { label: string; value: OrderStatus | "todos" }[] = [
 
 const RevendedorDashboard = () => {
   const { user, profile } = useAuth();
-  const [orders, setOrders] = useState<Order[]>([]);
+  const { orders, loading } = useRealtimeOrders({ userId: user?.id });
   const [filter, setFilter] = useState<OrderStatus | "todos">("todos");
-  const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-
-  const fetchOrders = () => {
-    if (!user) return;
-    supabase
-      .from("orders")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        setOrders((data as Order[]) || []);
-        setLoading(false);
-      });
-  };
-
-  useEffect(() => {
-    fetchOrders();
-  }, [user]);
 
   const filtered = filter === "todos" ? orders : orders.filter((o) => o.status === filter);
   const totalSpent = orders.reduce((s, o) => s + o.total, 0);
@@ -150,10 +112,7 @@ const RevendedorDashboard = () => {
             <CreateOrderForm
               createdBy="revendedor"
               resellerName={profile?.name || null}
-              onSuccess={() => {
-                setShowCreate(false);
-                fetchOrders();
-              }}
+              onSuccess={() => setShowCreate(false)}
             />
           </DialogContent>
         </Dialog>

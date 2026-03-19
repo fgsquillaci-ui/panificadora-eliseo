@@ -1,26 +1,14 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useRealtimeOrders } from "@/hooks/useRealtimeOrders";
 
 type OrderStatus = "pendiente" | "en_produccion" | "listo" | "en_delivery" | "entregado";
 
 const STATUS_FLOW: OrderStatus[] = ["pendiente", "en_produccion", "listo", "en_delivery", "entregado"];
-
-interface Order {
-  id: string;
-  customer_name: string;
-  customer_phone: string | null;
-  delivery_type: string;
-  address: string | null;
-  status: OrderStatus;
-  total: number;
-  created_at: string;
-  reseller_name: string | null;
-  created_by: string;
-}
 
 const statusLabels: Record<OrderStatus, string> = {
   pendiente: "Pendiente",
@@ -39,29 +27,20 @@ const statusColors: Record<OrderStatus, string> = {
 };
 
 const AdminOrders = () => {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const { orders, loading } = useRealtimeOrders();
   const [filter, setFilter] = useState<string>("todos");
-  const [loading, setLoading] = useState(true);
-
-  const fetchOrders = async () => {
-    const { data } = await supabase
-      .from("orders")
-      .select("*")
-      .order("created_at", { ascending: false });
-    setOrders((data as Order[]) || []);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchOrders();
-  }, []);
 
   const updateStatus = async (orderId: string, currentStatus: OrderStatus, newStatus: OrderStatus) => {
-    // Validate sequential transition
     const currentIdx = STATUS_FLOW.indexOf(currentStatus);
     const newIdx = STATUS_FLOW.indexOf(newStatus);
-    if (newIdx !== currentIdx + 1 && newIdx !== currentIdx) {
-      toast.error("Solo podés avanzar al siguiente estado");
+    // Allow forward +1 or backward -1
+    if (Math.abs(newIdx - currentIdx) > 1 || newIdx === currentIdx) {
+      toast.error("Solo podés avanzar o retroceder un estado");
+      return;
+    }
+    // Don't allow going back from entregado
+    if (currentStatus === "entregado") {
+      toast.error("No se puede retroceder desde entregado");
       return;
     }
     const { error } = await supabase
@@ -72,15 +51,14 @@ const AdminOrders = () => {
       toast.error("Error al actualizar estado");
     } else {
       toast.success(`Estado actualizado a "${statusLabels[newStatus]}"`);
-      fetchOrders();
     }
   };
 
-  const getNextStatuses = (current: OrderStatus): OrderStatus[] => {
+  const getAvailableStatuses = (current: OrderStatus): OrderStatus[] => {
     const idx = STATUS_FLOW.indexOf(current);
     if (idx < 0) return STATUS_FLOW;
-    // Allow current + next only
     const result = [current];
+    if (idx > 0 && current !== "entregado") result.unshift(STATUS_FLOW[idx - 1]);
     if (idx < STATUS_FLOW.length - 1) result.push(STATUS_FLOW[idx + 1]);
     return result;
   };
@@ -139,7 +117,7 @@ const AdminOrders = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {getNextStatuses(order.status).map((s) => (
+                    {getAvailableStatuses(order.status).map((s) => (
                       <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>
                     ))}
                   </SelectContent>

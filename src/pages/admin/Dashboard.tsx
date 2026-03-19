@@ -1,28 +1,15 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
 import OrderDetail from "@/components/OrderDetail";
 import CreateOrderForm from "@/components/CreateOrderForm";
-import { Package, CheckCircle, Clock, TrendingUp, Plus, Factory, PackageCheck, Truck } from "lucide-react";
+import { useRealtimeOrders, type Order } from "@/hooks/useRealtimeOrders";
+import { CheckCircle, Clock, TrendingUp, Plus, Factory, PackageCheck, Truck, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 type OrderStatus = "pendiente" | "en_produccion" | "listo" | "en_delivery" | "entregado";
-
-interface Order {
-  id: string;
-  status: OrderStatus;
-  total: number;
-  created_at: string;
-  delivery_type: string;
-  customer_name: string;
-  customer_phone: string | null;
-  address: string | null;
-  address_references: string | null;
-  reseller_name: string | null;
-  created_by: string;
-}
 
 const STATUS_FLOW: OrderStatus[] = ["pendiente", "en_produccion", "listo", "en_delivery", "entregado"];
 
@@ -34,19 +21,17 @@ const statusLabels: Record<OrderStatus, string> = {
   entregado: "Entregado",
 };
 
-const statusColors: Record<OrderStatus, string> = {
-  pendiente: "bg-gray-100 text-gray-800",
-  en_produccion: "bg-yellow-100 text-yellow-800",
-  listo: "bg-blue-100 text-blue-800",
-  en_delivery: "bg-orange-100 text-orange-800",
-  entregado: "bg-green-100 text-green-800",
-};
-
 const nextStatusAction: Record<string, { label: string; icon: React.ReactNode }> = {
   pendiente: { label: "En producción", icon: <Factory className="w-3.5 h-3.5" /> },
   en_produccion: { label: "Listo", icon: <PackageCheck className="w-3.5 h-3.5" /> },
   listo: { label: "Enviar a delivery", icon: <Truck className="w-3.5 h-3.5" /> },
   en_delivery: { label: "Entregado", icon: <CheckCircle className="w-3.5 h-3.5" /> },
+};
+
+const prevStatusAction: Record<string, { label: string }> = {
+  en_produccion: { label: "← Pendiente" },
+  listo: { label: "← En producción" },
+  en_delivery: { label: "← Listo" },
 };
 
 const filterOptions: { label: string; value: OrderStatus | "todos" }[] = [
@@ -59,44 +44,36 @@ const filterOptions: { label: string; value: OrderStatus | "todos" }[] = [
 ];
 
 const AdminDashboard = () => {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const { orders, loading } = useRealtimeOrders({ limit: 100 });
   const [filter, setFilter] = useState<OrderStatus | "todos">("todos");
-  const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
 
-  const fetchOrders = useCallback(async () => {
-    const { data } = await supabase
-      .from("orders")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    setOrders((data as Order[]) || []);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
-
-  const advanceStatus = async (orderId: string, currentStatus: OrderStatus) => {
-    const idx = STATUS_FLOW.indexOf(currentStatus);
-    if (idx < 0 || idx >= STATUS_FLOW.length - 1) return;
-    const next = STATUS_FLOW[idx + 1];
+  const changeStatus = async (orderId: string, newStatus: OrderStatus) => {
     const { error } = await supabase
       .from("orders")
-      .update({ status: next as any })
+      .update({ status: newStatus as any })
       .eq("id", orderId);
     if (error) {
       toast.error("Error al actualizar estado");
     } else {
-      toast.success(`Estado → ${statusLabels[next]}`);
-      fetchOrders();
+      toast.success(`Estado → ${statusLabels[newStatus]}`);
     }
+  };
+
+  const advanceStatus = (orderId: string, currentStatus: OrderStatus) => {
+    const idx = STATUS_FLOW.indexOf(currentStatus);
+    if (idx < 0 || idx >= STATUS_FLOW.length - 1) return;
+    changeStatus(orderId, STATUS_FLOW[idx + 1]);
+  };
+
+  const revertStatus = (orderId: string, currentStatus: OrderStatus) => {
+    const idx = STATUS_FLOW.indexOf(currentStatus);
+    if (idx <= 0) return;
+    changeStatus(orderId, STATUS_FLOW[idx - 1]);
   };
 
   const filtered = filter === "todos" ? orders : orders.filter((o) => o.status === filter);
 
-  // Metrics
   const today = new Date().toISOString().split("T")[0];
   const todayOrders = orders.filter((o) => o.created_at.startsWith(today));
   const todaySales = todayOrders.reduce((s, o) => s + (o.total || 0), 0);
@@ -126,7 +103,6 @@ const AdminDashboard = () => {
           <p className="text-muted-foreground font-body animate-pulse">Cargando...</p>
         ) : (
           <>
-            {/* Metrics */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {cards.map((card) => (
                 <div key={card.label} className="bg-card rounded-xl border p-5 space-y-2">
@@ -137,7 +113,6 @@ const AdminDashboard = () => {
               ))}
             </div>
 
-            {/* Filters */}
             <div className="space-y-4">
               <h2 className="font-display text-lg font-semibold">Pedidos</h2>
               <div className="flex gap-2 flex-wrap">
@@ -158,7 +133,6 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            {/* Orders */}
             <div className="space-y-3">
               {filtered.length === 0 ? (
                 <p className="font-body text-sm text-muted-foreground text-center py-8">No hay pedidos con este filtro.</p>
@@ -177,16 +151,29 @@ const AdminDashboard = () => {
                     createdAt={order.created_at}
                     resellerName={order.reseller_name}
                     actions={
-                      order.status !== "entregado" ? (
-                        <Button
-                          size="sm"
-                          onClick={() => advanceStatus(order.id, order.status)}
-                          className="gap-1.5 font-body text-xs"
-                        >
-                          {nextStatusAction[order.status]?.icon}
-                          {nextStatusAction[order.status]?.label}
-                        </Button>
-                      ) : undefined
+                      <div className="flex gap-1.5 flex-wrap">
+                        {prevStatusAction[order.status] && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => revertStatus(order.id, order.status)}
+                            className="gap-1 font-body text-xs"
+                          >
+                            <Undo2 className="w-3.5 h-3.5" />
+                            {prevStatusAction[order.status]?.label}
+                          </Button>
+                        )}
+                        {order.status !== "entregado" && nextStatusAction[order.status] && (
+                          <Button
+                            size="sm"
+                            onClick={() => advanceStatus(order.id, order.status)}
+                            className="gap-1.5 font-body text-xs"
+                          >
+                            {nextStatusAction[order.status]?.icon}
+                            {nextStatusAction[order.status]?.label}
+                          </Button>
+                        )}
+                      </div>
                     }
                   />
                 ))
@@ -195,7 +182,6 @@ const AdminDashboard = () => {
           </>
         )}
 
-        {/* Create order dialog */}
         <Dialog open={showCreate} onOpenChange={setShowCreate}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
@@ -205,10 +191,7 @@ const AdminDashboard = () => {
             <CreateOrderForm
               createdBy="admin"
               resellerName={null}
-              onSuccess={() => {
-                setShowCreate(false);
-                fetchOrders();
-              }}
+              onSuccess={() => setShowCreate(false)}
             />
           </DialogContent>
         </Dialog>

@@ -119,6 +119,7 @@ export type Database = {
           reseller_name: string | null
           status: Database["public"]["Enums"]["order_status"]
           total: number
+          updated_at: string
           user_id: string | null
         }
         Insert: {
@@ -134,6 +135,7 @@ export type Database = {
           reseller_name?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           total?: number
+          updated_at?: string
           user_id?: string | null
         }
         Update: {
@@ -149,6 +151,7 @@ export type Database = {
           reseller_name?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           total?: number
+          updated_at?: string
           user_id?: string | null
         }
         Relationships: []
