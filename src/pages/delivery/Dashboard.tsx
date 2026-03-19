@@ -79,12 +79,12 @@ const DeliveryDashboard = () => {
     fetchAssigned();
   };
 
-  const pendingCount = orders.filter((o) => o.delivery_status !== "entregado").length;
-  const completedCount = orders.filter((o) => o.delivery_status === "entregado").length;
+  const pendingOrders = orders.filter((o) => o.delivery_status !== "entregado");
+  const completedOrders = orders.filter((o) => o.delivery_status === "entregado");
 
   const cards = [
-    { label: "Pendientes", value: pendingCount, icon: <Clock className="w-5 h-5" />, color: "text-accent" },
-    { label: "Completadas", value: completedCount, icon: <CheckCircle className="w-5 h-5" />, color: "text-green-600" },
+    { label: "Por entregar", value: pendingOrders.length, icon: <Clock className="w-5 h-5" />, color: "text-orange-600" },
+    { label: "Completadas", value: completedOrders.length, icon: <CheckCircle className="w-5 h-5" />, color: "text-green-600" },
     { label: "Total asignadas", value: orders.length, icon: <Package className="w-5 h-5" />, color: "text-muted-foreground" },
   ];
 
@@ -107,14 +107,11 @@ const DeliveryDashboard = () => {
               ))}
             </div>
 
-            <div className="space-y-3">
-              {orders.length === 0 ? (
-                <div className="text-center py-12 space-y-3">
-                  <MapPin className="w-12 h-12 mx-auto text-muted-foreground" />
-                  <p className="font-body text-muted-foreground">No tenés entregas asignadas.</p>
-                </div>
-              ) : (
-                orders.map((o) => (
+            {/* Pending deliveries first */}
+            {pendingOrders.length > 0 && (
+              <div className="space-y-3">
+                <h2 className="font-display text-lg font-semibold">Por entregar</h2>
+                {pendingOrders.map((o) => (
                   <OrderDetail
                     key={o.delivery_id}
                     orderId={o.order_id}
@@ -122,26 +119,52 @@ const DeliveryDashboard = () => {
                     customerPhone={o.customer_phone}
                     address={o.address}
                     addressReferences={o.address_references}
-                    status={o.delivery_status === "entregado" ? "entregado" : "enviado"}
+                    status="en_delivery"
                     total={o.total}
                     deliveryType={o.delivery_type}
                     createdAt={o.created_at}
                     actions={
-                      o.delivery_status !== "entregado" ? (
-                        <Button
-                          size="sm"
-                          onClick={() => markDelivered(o.delivery_id, o.order_id)}
-                          className="gap-1.5 font-body text-xs"
-                        >
-                          <CheckCircle className="w-3.5 h-3.5" />
-                          Marcar entregado
-                        </Button>
-                      ) : undefined
+                      <Button
+                        size="sm"
+                        onClick={() => markDelivered(o.delivery_id, o.order_id)}
+                        className="gap-1.5 font-body text-xs"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        Marcar entregado
+                      </Button>
                     }
                   />
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
+
+            {/* Completed */}
+            {completedOrders.length > 0 && (
+              <div className="space-y-3">
+                <h2 className="font-display text-lg font-semibold text-muted-foreground">Completadas</h2>
+                {completedOrders.map((o) => (
+                  <OrderDetail
+                    key={o.delivery_id}
+                    orderId={o.order_id}
+                    customerName={o.customer_name}
+                    customerPhone={o.customer_phone}
+                    address={o.address}
+                    addressReferences={o.address_references}
+                    status="entregado"
+                    total={o.total}
+                    deliveryType={o.delivery_type}
+                    createdAt={o.created_at}
+                  />
+                ))}
+              </div>
+            )}
+
+            {orders.length === 0 && (
+              <div className="text-center py-12 space-y-3">
+                <MapPin className="w-12 h-12 mx-auto text-muted-foreground" />
+                <p className="font-body text-muted-foreground">No tenés entregas asignadas.</p>
+              </div>
+            )}
           </>
         )}
       </div>

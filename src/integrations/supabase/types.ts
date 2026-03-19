@@ -110,11 +110,13 @@ export type Database = {
           address: string | null
           address_references: string | null
           created_at: string
+          created_by: string
           customer_name: string
           customer_phone: string | null
           delivery_type: string
           id: string
           pickup_time: string | null
+          reseller_name: string | null
           status: Database["public"]["Enums"]["order_status"]
           total: number
           user_id: string | null
@@ -123,11 +125,13 @@ export type Database = {
           address?: string | null
           address_references?: string | null
           created_at?: string
+          created_by?: string
           customer_name: string
           customer_phone?: string | null
           delivery_type?: string
           id?: string
           pickup_time?: string | null
+          reseller_name?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           total?: number
           user_id?: string | null
@@ -136,11 +140,13 @@ export type Database = {
           address?: string | null
           address_references?: string | null
           created_at?: string
+          created_by?: string
           customer_name?: string
           customer_phone?: string | null
           delivery_type?: string
           id?: string
           pickup_time?: string | null
+          reseller_name?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           total?: number
           user_id?: string | null
@@ -295,7 +301,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "revendedor" | "delivery"
-      order_status: "pendiente" | "en_produccion" | "enviado" | "entregado"
+      order_status:
+        | "pendiente"
+        | "en_produccion"
+        | "enviado"
+        | "entregado"
+        | "listo"
+        | "en_delivery"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -424,7 +436,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "revendedor", "delivery"],
-      order_status: ["pendiente", "en_produccion", "enviado", "entregado"],
+      order_status: [
+        "pendiente",
+        "en_produccion",
+        "enviado",
+        "entregado",
+        "listo",
+        "en_delivery",
+      ],
     },
   },
 } as const

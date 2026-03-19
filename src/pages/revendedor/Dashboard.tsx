@@ -3,9 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import OrderDetail from "@/components/OrderDetail";
-import { Package, CheckCircle, Clock, DollarSign } from "lucide-react";
+import CreateOrderForm from "@/components/CreateOrderForm";
+import { Package, CheckCircle, Clock, DollarSign, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
-type OrderStatus = "pendiente" | "en_produccion" | "enviado" | "entregado";
+type OrderStatus = "pendiente" | "en_produccion" | "listo" | "en_delivery" | "entregado";
 
 interface Order {
   id: string;
@@ -19,21 +22,31 @@ interface Order {
   address_references: string | null;
 }
 
+const statusLabels: Record<OrderStatus, string> = {
+  pendiente: "Pendiente",
+  en_produccion: "En producción",
+  listo: "Listo",
+  en_delivery: "En delivery",
+  entregado: "Entregado",
+};
+
 const filterOptions: { label: string; value: OrderStatus | "todos" }[] = [
   { label: "Todos", value: "todos" },
   { label: "Pendiente", value: "pendiente" },
   { label: "En producción", value: "en_produccion" },
-  { label: "Enviado", value: "enviado" },
+  { label: "Listo", value: "listo" },
+  { label: "En delivery", value: "en_delivery" },
   { label: "Entregado", value: "entregado" },
 ];
 
 const RevendedorDashboard = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [filter, setFilter] = useState<OrderStatus | "todos">("todos");
   const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
 
-  useEffect(() => {
+  const fetchOrders = () => {
     if (!user) return;
     supabase
       .from("orders")
@@ -44,6 +57,10 @@ const RevendedorDashboard = () => {
         setOrders((data as Order[]) || []);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchOrders();
   }, [user]);
 
   const filtered = filter === "todos" ? orders : orders.filter((o) => o.status === filter);
@@ -61,7 +78,12 @@ const RevendedorDashboard = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <h1 className="font-display text-2xl font-bold">Mis pedidos</h1>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="font-display text-2xl font-bold">Mis pedidos</h1>
+          <Button onClick={() => setShowCreate(true)} className="gap-1.5 font-body text-sm">
+            <Plus className="w-4 h-4" /> Nuevo pedido
+          </Button>
+        </div>
 
         {loading ? (
           <p className="text-muted-foreground font-body animate-pulse">Cargando...</p>
@@ -77,7 +99,6 @@ const RevendedorDashboard = () => {
               ))}
             </div>
 
-            {/* Filters */}
             <div className="flex gap-2 flex-wrap">
               {filterOptions.map((f) => (
                 <button
@@ -94,7 +115,6 @@ const RevendedorDashboard = () => {
               ))}
             </div>
 
-            {/* Orders */}
             <div className="space-y-3">
               {filtered.length === 0 ? (
                 <div className="text-center py-12 space-y-3">
@@ -120,6 +140,23 @@ const RevendedorDashboard = () => {
             </div>
           </>
         )}
+
+        <Dialog open={showCreate} onOpenChange={setShowCreate}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="font-display">Nuevo pedido</DialogTitle>
+              <DialogDescription className="font-body text-sm">Cargá los productos y datos del cliente</DialogDescription>
+            </DialogHeader>
+            <CreateOrderForm
+              createdBy="revendedor"
+              resellerName={profile?.name || null}
+              onSuccess={() => {
+                setShowCreate(false);
+                fetchOrders();
+              }}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

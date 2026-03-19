@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
-type OrderStatus = "pendiente" | "en_produccion" | "enviado" | "entregado";
+type OrderStatus = "pendiente" | "en_produccion" | "listo" | "en_delivery" | "entregado";
+
+const STATUS_FLOW: OrderStatus[] = ["pendiente", "en_produccion", "listo", "en_delivery", "entregado"];
 
 interface Order {
   id: string;
@@ -16,19 +18,23 @@ interface Order {
   status: OrderStatus;
   total: number;
   created_at: string;
+  reseller_name: string | null;
+  created_by: string;
 }
 
 const statusLabels: Record<OrderStatus, string> = {
   pendiente: "Pendiente",
   en_produccion: "En producción",
-  enviado: "Enviado",
+  listo: "Listo",
+  en_delivery: "En delivery",
   entregado: "Entregado",
 };
 
 const statusColors: Record<OrderStatus, string> = {
-  pendiente: "bg-yellow-100 text-yellow-800",
-  en_produccion: "bg-blue-100 text-blue-800",
-  enviado: "bg-purple-100 text-purple-800",
+  pendiente: "bg-gray-100 text-gray-800",
+  en_produccion: "bg-yellow-100 text-yellow-800",
+  listo: "bg-blue-100 text-blue-800",
+  en_delivery: "bg-orange-100 text-orange-800",
   entregado: "bg-green-100 text-green-800",
 };
 
@@ -50,10 +56,17 @@ const AdminOrders = () => {
     fetchOrders();
   }, []);
 
-  const updateStatus = async (orderId: string, newStatus: OrderStatus) => {
+  const updateStatus = async (orderId: string, currentStatus: OrderStatus, newStatus: OrderStatus) => {
+    // Validate sequential transition
+    const currentIdx = STATUS_FLOW.indexOf(currentStatus);
+    const newIdx = STATUS_FLOW.indexOf(newStatus);
+    if (newIdx !== currentIdx + 1 && newIdx !== currentIdx) {
+      toast.error("Solo podés avanzar al siguiente estado");
+      return;
+    }
     const { error } = await supabase
       .from("orders")
-      .update({ status: newStatus })
+      .update({ status: newStatus as any })
       .eq("id", orderId);
     if (error) {
       toast.error("Error al actualizar estado");
@@ -61,6 +74,15 @@ const AdminOrders = () => {
       toast.success(`Estado actualizado a "${statusLabels[newStatus]}"`);
       fetchOrders();
     }
+  };
+
+  const getNextStatuses = (current: OrderStatus): OrderStatus[] => {
+    const idx = STATUS_FLOW.indexOf(current);
+    if (idx < 0) return STATUS_FLOW;
+    // Allow current + next only
+    const result = [current];
+    if (idx < STATUS_FLOW.length - 1) result.push(STATUS_FLOW[idx + 1]);
+    return result;
   };
 
   const filtered = filter === "todos" ? orders : orders.filter((o) => o.status === filter);
@@ -76,10 +98,9 @@ const AdminOrders = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos</SelectItem>
-              <SelectItem value="pendiente">Pendientes</SelectItem>
-              <SelectItem value="en_produccion">En producción</SelectItem>
-              <SelectItem value="enviado">Enviados</SelectItem>
-              <SelectItem value="entregado">Entregados</SelectItem>
+              {STATUS_FLOW.map((s) => (
+                <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -95,6 +116,11 @@ const AdminOrders = () => {
                 <div className="space-y-1 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-body font-semibold text-sm">{order.customer_name}</span>
+                    {order.reseller_name ? (
+                      <span className="font-body text-[10px] text-muted-foreground">vía {order.reseller_name}</span>
+                    ) : (
+                      <span className="font-body text-[10px] text-primary font-medium">Directo</span>
+                    )}
                     <Badge className={`${statusColors[order.status]} border-0 text-[10px] font-body`}>
                       {statusLabels[order.status]}
                     </Badge>
@@ -107,16 +133,15 @@ const AdminOrders = () => {
                 </div>
                 <Select
                   value={order.status}
-                  onValueChange={(v) => updateStatus(order.id, v as OrderStatus)}
+                  onValueChange={(v) => updateStatus(order.id, order.status, v as OrderStatus)}
                 >
                   <SelectTrigger className="w-40 h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pendiente">Pendiente</SelectItem>
-                    <SelectItem value="en_produccion">En producción</SelectItem>
-                    <SelectItem value="enviado">Enviado</SelectItem>
-                    <SelectItem value="entregado">Entregado</SelectItem>
+                    {getNextStatuses(order.status).map((s) => (
+                      <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

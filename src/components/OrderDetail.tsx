@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-type OrderStatus = "pendiente" | "en_produccion" | "enviado" | "entregado";
+type OrderStatus = "pendiente" | "en_produccion" | "listo" | "en_delivery" | "entregado";
 
 interface OrderItem {
   id: string;
@@ -25,21 +25,23 @@ interface OrderDetailProps {
   total: number;
   deliveryType: string;
   createdAt: string;
-  /** Extra content rendered in the header row (e.g. "Marcar entregado" button) */
+  resellerName?: string | null;
   actions?: React.ReactNode;
 }
 
 const statusLabels: Record<OrderStatus, string> = {
   pendiente: "Pendiente",
   en_produccion: "En producción",
-  enviado: "Enviado",
+  listo: "Listo",
+  en_delivery: "En delivery",
   entregado: "Entregado",
 };
 
 const statusColors: Record<OrderStatus, string> = {
-  pendiente: "bg-yellow-100 text-yellow-800",
-  en_produccion: "bg-blue-100 text-blue-800",
-  enviado: "bg-purple-100 text-purple-800",
+  pendiente: "bg-gray-100 text-gray-800",
+  en_produccion: "bg-yellow-100 text-yellow-800",
+  listo: "bg-blue-100 text-blue-800",
+  en_delivery: "bg-orange-100 text-orange-800",
   entregado: "bg-green-100 text-green-800",
 };
 
@@ -53,6 +55,7 @@ const OrderDetail = ({
   total,
   deliveryType,
   createdAt,
+  resellerName,
   actions,
 }: OrderDetailProps) => {
   const [open, setOpen] = useState(false);
@@ -82,6 +85,9 @@ const OrderDetail = ({
             <div className="space-y-1 flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-body font-semibold text-sm truncate">{customerName}</span>
+                {resellerName && (
+                  <span className="font-body text-[10px] text-muted-foreground">vía {resellerName}</span>
+                )}
                 <Badge className={cn("border-0 text-[10px] font-body", statusColors[st] || "bg-muted text-muted-foreground")}>
                   {statusLabels[st] || status}
                 </Badge>
@@ -98,7 +104,6 @@ const OrderDetail = ({
 
         <CollapsibleContent>
           <div className="border-t px-4 pb-4 pt-3 space-y-3">
-            {/* Contact & address */}
             <div className="space-y-1">
               {customerPhone && (
                 <p className="font-body text-xs text-muted-foreground">📱 {customerPhone}</p>
@@ -111,7 +116,6 @@ const OrderDetail = ({
               )}
             </div>
 
-            {/* Items table */}
             {!loaded ? (
               <p className="font-body text-xs text-muted-foreground animate-pulse">Cargando productos...</p>
             ) : items.length === 0 ? (
@@ -147,7 +151,6 @@ const OrderDetail = ({
               </div>
             )}
 
-            {/* Extra actions */}
             {actions && <div className="flex justify-end pt-1">{actions}</div>}
           </div>
         </CollapsibleContent>
