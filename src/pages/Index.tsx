@@ -54,11 +54,12 @@ const Index = () => {
         discountPercent={discountPercent}
         bounceKey={cart.bounceKey}
         isOpen={cartOpen}
+        profile={profile}
         onToggle={() => setCartOpen(!cartOpen)}
         onUpdateQuantity={cart.updateQuantity}
         onRemoveItem={cart.removeItem}
         onClear={cart.clearCart}
-        whatsAppUrl={cart.getWhatsAppUrl(profile)}
+        getWhatsAppUrl={(checkoutData) => cart.getWhatsAppUrl(profile, checkoutData)}
       />
     </div>
   );
