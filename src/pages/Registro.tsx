@@ -86,15 +86,24 @@ const Registro = () => {
           </div>
           <div>
             <label className="block font-body font-medium text-sm mb-1.5">Contraseña *</label>
-            <Input
-              type="password"
-              placeholder="Mínimo 6 caracteres"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="text-base py-3"
-            />
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                placeholder="Mínimo 6 caracteres"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                className="text-base py-3 pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
           <button
             type="submit"
