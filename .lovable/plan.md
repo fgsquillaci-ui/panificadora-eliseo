@@ -1,68 +1,42 @@
 
 
-## Plan: Sistema de pedidos sincronizado con retroceso de estados y realtime
+## Plan: Fix critical sync, RLS, and realtime bugs
 
-### Problemas identificados
+### Root causes identified
 
-1. **No hay retroceso de estados**: Admin solo puede avanzar, no corregir errores
-2. **Delivery no ve pedidos**: El delivery dashboard filtra por `deliveries` table, pero los pedidos con status `en_delivery` no se asignan automaticamente a esa tabla
-3. **Sin realtime**: Cambios en un dashboard no se reflejan en otros sin recargar
-4. **Revendedor no ve cambios de estado**: Solo hace fetch una vez, sin suscripcion
+1. **Delivery can't see order items**: The `order_items` RLS only allows reading via `deliveries` table join or `user_id` match. Delivery users querying `order_items` directly get empty results because there's no policy for delivery role reading order_items of `en_delivery` orders.
 
-### Cambios propuestos
+2. **Realtime channel collision**: All `useRealtimeOrders` instances use the same channel name `"orders-realtime"`. When Delivery dashboard creates two instances (one for `en_delivery`, one for `entregado`), the second subscription overwrites the first.
 
-#### 1. Migracion SQL: Habilitar realtime + columna updated_at
+3. **No trigger attached**: The `db-triggers` section shows "There are no triggers in the database" — the `updated_at` trigger may not have been applied, or the migration failed silently.
 
-- `ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;`
-- Agregar columna `updated_at` con trigger que la actualice automaticamente en cada UPDATE
-- Cambiar logica de delivery: en vez de depender de la tabla `deliveries`, el delivery dashboard mostrara TODOS los pedidos con `status = 'en_delivery'` directamente de `orders`
-- Agregar RLS policy: delivery puede leer orders con status `en_delivery` (sin necesidad de asignacion en tabla deliveries)
+### Changes
 
-#### 2. Hook reutilizable: `useRealtimeOrders`
+#### 1. SQL Migration
 
-**Nuevo archivo: `src/hooks/useRealtimeOrders.ts`**
+- **Add RLS policy on `order_items`** for delivery role: delivery users can SELECT order_items where the parent order has `status = 'en_delivery'` OR `status = 'entregado'`
+- **Re-create the `updated_at` trigger** on orders if missing (idempotent `CREATE OR REPLACE` + `DROP TRIGGER IF EXISTS`)
+- **Verify realtime publication** is enabled
 
-Hook que:
-- Hace fetch inicial de orders (con filtros opcionales por user_id, status, etc.)
-- Se suscribe a `postgres_changes` en tabla `orders` para INSERT y UPDATE
-- Actualiza el estado local automaticamente cuando llega un evento
-- Retorna `{ orders, loading, refetch }`
+#### 2. Fix `useRealtimeOrders.ts` — unique channel names
 
-#### 3. Admin Dashboard (`src/pages/admin/Dashboard.tsx`)
+Change channel name from hardcoded `"orders-realtime"` to a unique name per hook instance based on options (e.g., `"orders-rt-${userId}-${statusFilter}"`). This prevents multiple hook instances from overwriting each other's subscriptions.
 
-- Usar `useRealtimeOrders` en vez de fetch manual
-- Agregar boton de **retroceso** junto al de avance:
-  - `en_produccion` → `pendiente`
-  - `listo` → `en_produccion`
-  - `en_delivery` → `listo`
-  - `entregado` no retrocede
-- Ambos botones (avanzar/retroceder) visibles por pedido
+#### 3. No dashboard code changes needed
 
-#### 4. Admin Orders (`src/pages/admin/Orders.tsx`)
+The admin, revendedor, and delivery dashboards already have the correct logic:
+- Admin uses `useRealtimeOrders({ limit: 100 })` — sees all orders
+- Revendedor uses `useRealtimeOrders({ userId: user?.id })` — sees own orders
+- Delivery uses `useRealtimeOrders({ statusFilter: "en_delivery" })` and `useRealtimeOrders({ statusFilter: "entregado" })`
+- Admin already has advance/revert buttons
+- OrderDetail already fetches items from `order_items` on expand
 
-- Usar `useRealtimeOrders`
-- Permitir retroceso en el Select de estados (current, next, previous)
+The bugs are in RLS (blocking data) and channel collisions (breaking realtime), not in UI code.
 
-#### 5. Delivery Dashboard (`src/pages/delivery/Dashboard.tsx`)
+### Files affected
 
-- **Cambio critico**: En vez de consultar tabla `deliveries`, consultar directamente `orders` con `status = 'en_delivery'`
-- Usar `useRealtimeOrders` con filtro de status
-- Al marcar entregado: actualizar solo `orders.status` a `entregado`
-- Esto elimina la dependencia de la tabla `deliveries` para mostrar pedidos
-
-#### 6. Revendedor Dashboard (`src/pages/revendedor/Dashboard.tsx`)
-
-- Usar `useRealtimeOrders` con filtro `user_id = user.id`
-- Estados se actualizan en tiempo real (ve cuando pasa a entregado)
-
-### Archivos afectados
-
-| Archivo | Cambio |
-|---------|--------|
-| Migracion SQL | Realtime, updated_at, RLS delivery directo |
-| `src/hooks/useRealtimeOrders.ts` | **Nuevo** - hook realtime |
-| `src/pages/admin/Dashboard.tsx` | Realtime + botones retroceso |
-| `src/pages/admin/Orders.tsx` | Realtime + retroceso en select |
-| `src/pages/delivery/Dashboard.tsx` | Query directa a orders, realtime |
-| `src/pages/revendedor/Dashboard.tsx` | Realtime |
+| File | Change |
+|------|--------|
+| SQL migration | Add order_items RLS for delivery, re-create updated_at trigger |
+| `src/hooks/useRealtimeOrders.ts` | Unique channel name per instance |
 
