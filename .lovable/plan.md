@@ -1,40 +1,28 @@
 
 
-## Asignar roles a usuarios
+## Crear 3 usuarios de prueba con roles
 
-### Usuarios existentes
+Como la tabla `profiles` requiere un usuario real en `auth.users` (el trigger `handle_new_user` crea el perfil automáticamente), necesitamos crear los usuarios a través de una edge function temporal que use el Admin API.
 
-Solo hay 2 usuarios registrados:
-1. **Franco Squillaci** (`fgsquillaci@gmail.com`) — ID: `48668bda-b669-4fea-944c-26584c7cf15a`
-2. **santana2022eliseo@gmail.com** — ID: `cb69d9a7-df33-4d69-8f70-f04483270cfd` (ya es admin)
+### Pasos
 
-### Acciones
+#### 1. Crear edge function temporal `create-test-users`
+- Usa el service role key para crear usuarios via `supabase.auth.admin.createUser()`
+- Crea 3 usuarios con contraseña `Test1234!` y auto-confirm habilitado:
+  - `revendedor1@gmail.com` (nombre: "Revendedor 1")
+  - `revendedor2@gmail.com` (nombre: "Revendedor 2")  
+  - `delivery1@gmail.com` (nombre: "Delivery 1")
+- El trigger `handle_new_user` creará automáticamente sus perfiles
+- Después de crear cada usuario, inserta el rol correspondiente en `user_roles`
 
-**1. Asignar admin a Franco:**
-```sql
-INSERT INTO user_roles (user_id, role) 
-VALUES ('48668bda-b669-4fea-944c-26584c7cf15a', 'admin');
-```
+#### 2. Ejecutar la edge function
+- Llamar la función para crear los usuarios y asignar roles
 
-**2. Crear usuarios simulados para pruebas:**
-
-Como no puedo crear cuentas de login directamente, crearé perfiles ficticios con roles asignados. Estos aparecerán en el panel de admin para simular la gestión, pero no podrán iniciar sesión hasta que se registren con esos emails.
-
-```sql
--- 2 revendedores simulados
-INSERT INTO profiles (id, name, phone) VALUES
-  (gen_random_uuid(), 'María Revendedora', '1155001111'),
-  (gen_random_uuid(), 'Carlos Revendedor', '1155002222');
-
--- 1 delivery simulado  
-INSERT INTO profiles (id, name, phone) VALUES
-  (gen_random_uuid(), 'Pedro Delivery', '1155003333');
-```
-
-Luego asignar roles correspondientes a cada uno.
+#### 3. Eliminar la edge function
+- Borrar la función temporal ya que no se necesita más
 
 ### Resultado
-- 2 admins reales (pueden loguearse)
-- 2 revendedores y 1 delivery visibles en el panel de gestión de usuarios
-- Luego podrás modificar nombres y datos desde `/admin/usuarios`
+- 3 usuarios con login funcional (contraseña: `Test1234!`)
+- 2 con rol `revendedor`, 1 con rol `delivery`
+- Visibles en el panel de gestión de usuarios del admin
 
