@@ -13,7 +13,7 @@ export function useProducts() {
 
       if (error || !data || data.length === 0) {
         console.warn("Falling back to local products", error);
-        return fallbackProducts;
+        return fallbackProducts.filter(p => p.price > 0);
       }
 
       return data.map((p) => ({
