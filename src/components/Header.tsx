@@ -1,8 +1,9 @@
-import { ShoppingCart, User, LogOut } from "lucide-react";
+import { ShoppingCart, User, LogOut, LayoutDashboard } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import logo from "@/assets/logo.png";
 import type { Profile } from "@/hooks/useAuth";
+import type { AppRole } from "@/hooks/useRole";
 
 interface Props {
   totalItems: number;
@@ -11,6 +12,7 @@ interface Props {
   profile: Profile | null;
   isLoggedIn: boolean;
   onSignOut: () => void;
+  role?: AppRole | null;
 }
 
 const Header = ({ totalItems, bounceKey, onCartClick, profile, isLoggedIn, onSignOut }: Props) => (
