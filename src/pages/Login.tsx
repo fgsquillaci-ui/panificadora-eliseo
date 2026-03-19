@@ -19,13 +19,34 @@ const Login = () => {
     if (!email || !password) return;
     setSubmitting(true);
     const { error } = await signIn(email, password);
-    setSubmitting(false);
     if (error) {
+      setSubmitting(false);
       toast.error("Email o contraseña incorrectos. Intentá de nuevo.");
+      return;
+    }
+    // Fetch user role to redirect to correct dashboard
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+      const firstRole = roles?.[0]?.role;
+      toast.success("¡Bienvenido!");
+      if (firstRole === "admin") {
+        navigate("/admin");
+      } else if (firstRole === "revendedor") {
+        navigate("/revendedor");
+      } else if (firstRole === "delivery") {
+        navigate("/delivery");
+      } else {
+        navigate("/");
+      }
     } else {
       toast.success("¡Bienvenido!");
       navigate("/");
     }
+    setSubmitting(false);
   };
 
   return (
