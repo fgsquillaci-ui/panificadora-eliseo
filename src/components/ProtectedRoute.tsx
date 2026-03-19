@@ -9,7 +9,7 @@ interface Props {
 
 const ProtectedRoute = ({ children, allowedRoles }: Props) => {
   const { user, loading: authLoading } = useAuth();
-  const { role, loading: roleLoading } = useRole(user?.id);
+  const { roles, loading: roleLoading } = useRole(user?.id);
 
   if (authLoading || roleLoading) {
     return (
@@ -23,7 +23,7 @@ const ProtectedRoute = ({ children, allowedRoles }: Props) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (!role || !allowedRoles.includes(role)) {
+  if (roles.length === 0 || !allowedRoles.some((r) => roles.includes(r))) {
     return <Navigate to="/" replace />;
   }
 
