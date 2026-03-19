@@ -74,6 +74,30 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          created_at: string
+          discount_percent: number
+          id: string
+          name: string
+          phone: string | null
+        }
+        Insert: {
+          created_at?: string
+          discount_percent?: number
+          id: string
+          name?: string
+          phone?: string | null
+        }
+        Update: {
+          created_at?: string
+          discount_percent?: number
+          id?: string
+          name?: string
+          phone?: string | null
+        }
+        Relationships: []
+      }
       sales: {
         Row: {
           created_at: string
