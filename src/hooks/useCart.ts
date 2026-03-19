@@ -58,7 +58,7 @@ export function useCart() {
   );
 
   const getWhatsAppUrl = useCallback(
-    (profile: Profile | null) => {
+    (profile: Profile | null, checkoutData?: { deliveryType: "delivery" | "retiro"; address: string; references: string; pickupTime: string; customerName: string; customerPhone: string }) => {
       if (items.length === 0) return "";
       const total = getTotalPrice(profile);
       const lines = items.map((i) => {
@@ -67,12 +67,26 @@ export function useCart() {
         const itemTotal = effectivePrice * i.quantity;
         return `- ${i.product.name} x${i.quantity} ($${itemTotal.toLocaleString("es-AR")})${isWholesale ? " [mayorista]" : ""}`;
       });
-      const clientLine = profile?.name ? `\nCliente: ${profile.name}` : "";
+
       const discountLine =
         profile && profile.discount_percent > 0
-          ? `\nDescuento cliente: ${profile.discount_percent}%`
+          ? `\n🏷️ Descuento cliente: ${profile.discount_percent}%`
           : "";
-      const message = `Hola, quiero hacer el siguiente pedido:${clientLine}\n${lines.join("\n")}${discountLine}\nTotal: $${total.toLocaleString("es-AR")}`;
+
+      let deliverySection = "";
+      if (checkoutData) {
+        if (checkoutData.deliveryType === "delivery") {
+          deliverySection = `📍 Entrega: Delivery\n- Dirección: ${checkoutData.address}${checkoutData.references ? `\n- Referencias: ${checkoutData.references}` : ""}`;
+        } else {
+          deliverySection = `📍 Entrega: Retiro en local\n- Horario estimado: ${checkoutData.pickupTime}`;
+        }
+      }
+
+      const customerSection = checkoutData
+        ? `👤 Nombre: ${checkoutData.customerName}\n📞 Teléfono: ${checkoutData.customerPhone}`
+        : "";
+
+      const message = `Hola, quiero realizar el siguiente pedido:\n\n🛒 Pedido:\n${lines.join("\n")}${discountLine}\n\n💰 Total: $${total.toLocaleString("es-AR")}\n\n${deliverySection}\n\n${customerSection}\n\nGracias 🙌`;
       return `https://api.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${encodeURIComponent(message)}`;
     },
     [items, getTotalPrice]
