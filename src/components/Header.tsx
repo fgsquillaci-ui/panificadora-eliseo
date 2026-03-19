@@ -12,11 +12,11 @@ interface Props {
   profile: Profile | null;
   isLoggedIn: boolean;
   onSignOut: () => void;
-  role?: AppRole | null;
+  roles?: AppRole[];
 }
 
-const Header = ({ totalItems, bounceKey, onCartClick, profile, isLoggedIn, onSignOut, role }: Props) => {
-  const panelPath = role === "admin" ? "/admin" : role === "revendedor" ? "/revendedor" : role === "delivery" ? "/delivery" : null;
+const Header = ({ totalItems, bounceKey, onCartClick, profile, isLoggedIn, onSignOut, roles = [] }: Props) => {
+  const panelPath = roles.includes("admin") ? "/admin" : roles.includes("revendedor") ? "/revendedor" : roles.includes("delivery") ? "/delivery" : null;
 
   return (
   <header className="fixed top-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-b">

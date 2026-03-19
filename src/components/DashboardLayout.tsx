@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { useRole } from "@/hooks/useRole";
+import { useRole, type AppRole } from "@/hooks/useRole";
 import { LogOut, LayoutDashboard, Package, Users, Truck, Home } from "lucide-react";
 import logo from "@/assets/logo.png";
 
@@ -8,31 +8,25 @@ interface NavItem {
   label: string;
   path: string;
   icon: React.ReactNode;
+  roles: AppRole[];
 }
 
-const adminNav: NavItem[] = [
-  { label: "Dashboard", path: "/admin", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { label: "Pedidos", path: "/admin/pedidos", icon: <Package className="w-4 h-4" /> },
-  { label: "Usuarios", path: "/admin/usuarios", icon: <Users className="w-4 h-4" /> },
-];
-
-const revendedorNav: NavItem[] = [
-  { label: "Mis Pedidos", path: "/revendedor", icon: <Package className="w-4 h-4" /> },
-];
-
-const deliveryNav: NavItem[] = [
-  { label: "Entregas", path: "/delivery", icon: <Truck className="w-4 h-4" /> },
+const allNavItems: NavItem[] = [
+  { label: "Dashboard", path: "/admin", icon: <LayoutDashboard className="w-4 h-4" />, roles: ["admin"] },
+  { label: "Pedidos", path: "/admin/pedidos", icon: <Package className="w-4 h-4" />, roles: ["admin"] },
+  { label: "Usuarios", path: "/admin/usuarios", icon: <Users className="w-4 h-4" />, roles: ["admin"] },
+  { label: "Mis Pedidos", path: "/revendedor", icon: <Package className="w-4 h-4" />, roles: ["revendedor"] },
+  { label: "Entregas", path: "/delivery", icon: <Truck className="w-4 h-4" />, roles: ["delivery"] },
 ];
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const { user, profile, signOut } = useAuth();
-  const { role } = useRole(user?.id);
+  const { roles } = useRole(user?.id);
   const location = useLocation();
 
-  const navItems =
-    role === "admin" ? adminNav :
-    role === "revendedor" ? revendedorNav :
-    role === "delivery" ? deliveryNav : [];
+  const navItems = allNavItems.filter((item) =>
+    item.roles.some((r) => roles.includes(r))
+  );
 
   return (
     <div className="min-h-screen flex bg-background">
