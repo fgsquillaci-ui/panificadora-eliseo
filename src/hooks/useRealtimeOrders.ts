@@ -55,8 +55,9 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}) {
   }, [fetchOrders]);
 
   useEffect(() => {
+    const channelName = `orders-rt-${options.userId ?? "all"}-${options.statusFilter ?? "all"}-${options.limit ?? "none"}`;
     const channel = supabase
-      .channel("orders-realtime")
+      .channel(channelName)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "orders" },
