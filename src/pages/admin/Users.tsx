@@ -62,19 +62,14 @@ const AdminUsers = () => {
       toast.success("Rol eliminado");
     } else {
       // Upsert role
+      // Delete existing role first, then insert new one
+      await supabase.from("user_roles").delete().eq("user_id", userId);
       const { error } = await supabase
         .from("user_roles")
-        .upsert({ user_id: userId, role: newRole }, { onConflict: "user_id,role" });
+        .insert([{ user_id: userId, role: newRole as "admin" | "revendedor" | "delivery" }]);
       if (error) {
-        // Try delete existing then insert
-        await supabase.from("user_roles").delete().eq("user_id", userId);
-        const { error: insertError } = await supabase
-          .from("user_roles")
-          .insert({ user_id: userId, role: newRole });
-        if (insertError) {
-          toast.error("Error al asignar rol");
-          return;
-        }
+        toast.error("Error al asignar rol");
+        return;
       }
       toast.success(`Rol asignado: ${roleLabels[newRole]}`);
     }
