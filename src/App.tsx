@@ -12,7 +12,9 @@ import ProtectedRoute from "./components/ProtectedRoute.tsx";
 import AdminDashboard from "./pages/admin/Dashboard.tsx";
 import AdminOrders from "./pages/admin/Orders.tsx";
 import AdminUsers from "./pages/admin/Users.tsx";
+import AdminCustomers from "./pages/admin/Customers.tsx";
 import RevendedorDashboard from "./pages/revendedor/Dashboard.tsx";
+import RevendedorCustomers from "./pages/revendedor/Customers.tsx";
 import DeliveryDashboard from "./pages/delivery/Dashboard.tsx";
 
 const queryClient = new QueryClient();
