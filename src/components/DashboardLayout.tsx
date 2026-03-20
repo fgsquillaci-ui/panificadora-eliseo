@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useRole, type AppRole } from "@/hooks/useRole";
-import { LogOut, LayoutDashboard, Package, Users, Truck, Home } from "lucide-react";
+import { LogOut, LayoutDashboard, Package, Users, Truck, Home, UserRound } from "lucide-react";
 import logo from "@/assets/logo.png";
 
 interface NavItem {
@@ -15,7 +15,9 @@ const allNavItems: NavItem[] = [
   { label: "Dashboard", path: "/admin", icon: <LayoutDashboard className="w-4 h-4" />, roles: ["admin"] },
   { label: "Pedidos", path: "/admin/pedidos", icon: <Package className="w-4 h-4" />, roles: ["admin"] },
   { label: "Usuarios", path: "/admin/usuarios", icon: <Users className="w-4 h-4" />, roles: ["admin"] },
+  { label: "Clientes", path: "/admin/clientes", icon: <UserRound className="w-4 h-4" />, roles: ["admin"] },
   { label: "Mis Pedidos", path: "/revendedor", icon: <Package className="w-4 h-4" />, roles: ["revendedor"] },
+  { label: "Mis Clientes", path: "/revendedor/clientes", icon: <UserRound className="w-4 h-4" />, roles: ["revendedor"] },
   { label: "Entregas", path: "/delivery", icon: <Truck className="w-4 h-4" />, roles: ["delivery"] },
 ];
 

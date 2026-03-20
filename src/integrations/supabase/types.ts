@@ -16,25 +16,34 @@ export type Database = {
     Tables: {
       customers: {
         Row: {
+          address: string | null
           created_at: string
-          customer_type: string
+          created_by: string
           id: string
+          is_active: boolean
           name: string
           phone: string | null
+          reseller_id: string | null
         }
         Insert: {
+          address?: string | null
           created_at?: string
-          customer_type?: string
+          created_by?: string
           id?: string
+          is_active?: boolean
           name: string
           phone?: string | null
+          reseller_id?: string | null
         }
         Update: {
+          address?: string | null
           created_at?: string
-          customer_type?: string
+          created_by?: string
           id?: string
+          is_active?: boolean
           name?: string
           phone?: string | null
+          reseller_id?: string | null
         }
         Relationships: []
       }
@@ -111,6 +120,7 @@ export type Database = {
           address_references: string | null
           created_at: string
           created_by: string
+          customer_id: string | null
           customer_name: string
           customer_phone: string | null
           delivery_type: string
@@ -127,6 +137,7 @@ export type Database = {
           address_references?: string | null
           created_at?: string
           created_by?: string
+          customer_id?: string | null
           customer_name: string
           customer_phone?: string | null
           delivery_type?: string
@@ -143,6 +154,7 @@ export type Database = {
           address_references?: string | null
           created_at?: string
           created_by?: string
+          customer_id?: string | null
           customer_name?: string
           customer_phone?: string | null
           delivery_type?: string
@@ -154,7 +166,15 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {
