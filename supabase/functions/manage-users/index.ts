@@ -19,53 +19,23 @@ Deno.serve(async (req) => {
     const { action } = await req.json();
     const results: string[] = [];
 
-    if (action === "setup") {
-      // 1. Update revendedor1 email + password
-      const revendedorId = "b0b8da90-1dd9-4889-b368-e20ec7e69129";
-      
-      const { error: updateAuthErr } = await supabaseAdmin.auth.admin.updateUserById(revendedorId, {
-        email: "choyleonivas@gmail.com",
-        password: "Choy.1",
+    if (action === "update-delivery") {
+      const deliveryId = "43d18d95-a8ec-4317-b15e-a6856f681945";
+
+      const { error: updateAuthErr } = await supabaseAdmin.auth.admin.updateUserById(deliveryId, {
+        email: "aguileralucianofranco@gmail.com",
+        password: "Negro1",
         email_confirm: true,
       });
       if (updateAuthErr) throw new Error(`Update auth: ${updateAuthErr.message}`);
-      results.push("✅ Revendedor email/password updated");
+      results.push("✅ Delivery email/password updated");
 
       const { error: updateProfileErr } = await supabaseAdmin
         .from("profiles")
-        .update({ name: "Choy" })
-        .eq("id", revendedorId);
+        .update({ name: "Luciano Franco Aguilera" })
+        .eq("id", deliveryId);
       if (updateProfileErr) throw new Error(`Update profile: ${updateProfileErr.message}`);
-      results.push("✅ Revendedor profile name updated");
-
-      // 2. Create or find admin user
-      let adminUserId: string;
-      const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-        email: "santana2022eliseo@gmail.com",
-        password: "Turulo",
-        email_confirm: true,
-        user_metadata: { name: "Eliseo Santana", phone: "" },
-      });
-      if (createErr) {
-        // User already exists, find them
-        const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
-        const existing = listData?.users?.find((u: any) => u.email === "santana2022eliseo@gmail.com");
-        if (!existing) throw new Error("Could not find or create admin user");
-        adminUserId = existing.id;
-        // Update password
-        await supabaseAdmin.auth.admin.updateUserById(adminUserId, { password: "Turulo", email_confirm: true });
-        results.push(`✅ Admin user found & updated: ${adminUserId}`);
-      } else {
-        adminUserId = newUser.user.id;
-        results.push(`✅ Admin user created: ${adminUserId}`);
-      }
-
-      // 3. Assign admin role (upsert)
-      const { error: roleErr } = await supabaseAdmin
-        .from("user_roles")
-        .upsert({ user_id: adminUserId, role: "admin" }, { onConflict: "user_id,role" });
-      if (roleErr) throw new Error(`Assign role: ${roleErr.message}`);
-      results.push("✅ Admin role assigned");
+      results.push("✅ Delivery profile name updated");
     }
 
     return new Response(JSON.stringify({ success: true, results }), {
