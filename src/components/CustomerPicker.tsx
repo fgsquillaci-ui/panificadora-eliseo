@@ -76,7 +76,7 @@ const CustomerPicker = ({ selectedCustomer, onSelect, createdBy, resellerId }: C
     }
 
     setSubmitting(true);
-    const insertData: Record<string, unknown> = {
+    const insertData: any = {
       name: form.name.trim(),
       phone: form.phone.trim() || null,
       address: form.address.trim() || null,
