@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProducts } from "@/hooks/useProducts";
+import CustomerPicker from "@/components/CustomerPicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,13 @@ interface CartItem {
   quantity: number;
 }
 
+interface SelectedCustomer {
+  id: string;
+  name: string;
+  phone: string | null;
+  address: string | null;
+}
+
 interface CreateOrderFormProps {
   createdBy: "admin" | "revendedor";
   resellerName: string | null;
@@ -25,10 +33,14 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
   const { user } = useAuth();
   const { data: products, isLoading: productsLoading } = useProducts();
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [customerName, setCustomerName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
   const [address, setAddress] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const handleCustomerSelect = (customer: SelectedCustomer | null) => {
+    setSelectedCustomer(customer);
+    if (customer?.address) setAddress(customer.address);
+  };
 
   const addToCart = (product: { id: string; name: string; price: number }) => {
     setCart((prev) => {
@@ -54,8 +66,8 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
 
   const handleSubmit = async () => {
     if (!user) return;
-    if (!customerName.trim()) {
-      toast.error("Ingresá el nombre del cliente");
+    if (!selectedCustomer) {
+      toast.error("Seleccioná un cliente");
       return;
     }
     if (cart.length === 0) {
@@ -67,8 +79,9 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
     const { data: order, error } = await supabase
       .from("orders")
       .insert({
-        customer_name: customerName.trim(),
-        customer_phone: phone.trim() || null,
+        customer_name: selectedCustomer.name,
+        customer_phone: selectedCustomer.phone || null,
+        customer_id: selectedCustomer.id,
         address: address.trim() || null,
         delivery_type: address.trim() ? "delivery" : "retiro",
         total,
@@ -110,17 +123,15 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
 
   return (
     <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-      {/* Customer info */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label className="font-body text-xs">Nombre del cliente *</Label>
-          <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Juan Pérez" />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="font-body text-xs">Teléfono</Label>
-          <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="11-2345-6789" />
-        </div>
-      </div>
+      {/* Customer picker */}
+      <CustomerPicker
+        selectedCustomer={selectedCustomer}
+        onSelect={handleCustomerSelect}
+        createdBy={createdBy}
+        resellerId={createdBy === "revendedor" ? user?.id || null : null}
+      />
+
+      {/* Address override */}
       <div className="space-y-1.5">
         <Label className="font-body text-xs">Dirección (vacío = retiro en local)</Label>
         <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Av. Corrientes 1234" />
