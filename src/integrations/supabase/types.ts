@@ -197,6 +197,7 @@ export type Database = {
           created_at: string
           discount_percent: number
           id: string
+          is_active: boolean
           name: string
           phone: string | null
         }
@@ -204,6 +205,7 @@ export type Database = {
           created_at?: string
           discount_percent?: number
           id: string
+          is_active?: boolean
           name?: string
           phone?: string | null
         }
@@ -211,6 +213,7 @@ export type Database = {
           created_at?: string
           discount_percent?: number
           id?: string
+          is_active?: boolean
           name?: string
           phone?: string | null
         }

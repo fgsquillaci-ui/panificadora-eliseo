@@ -25,8 +25,21 @@ const Login = () => {
       toast.error("Email o contraseña incorrectos. Intentá de nuevo.");
       return;
     }
-    // Fetch user role to redirect to correct dashboard
+    // Fetch user and check if active
     const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_active")
+        .eq("id", user.id)
+        .single();
+      if (profile && profile.is_active === false) {
+        await supabase.auth.signOut();
+        setSubmitting(false);
+        toast.error("Tu cuenta está desactivada. Contactá al administrador.");
+        return;
+      }
+    }
     if (user) {
       const { data: roles } = await supabase
         .from("user_roles")
