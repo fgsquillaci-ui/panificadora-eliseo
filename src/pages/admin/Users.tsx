@@ -184,14 +184,14 @@ const AdminUsers = () => {
     try {
       if (deactivateTarget.is_active) {
         await invokeManageUsers({ action: "deactivate-user", user_id: deactivateTarget.id });
-        toast.success("Usuario desactivado");
+        toast.success("Personal desactivado");
       } else {
         await invokeManageUsers({
           action: "update-user",
           user_id: deactivateTarget.id,
           is_active: true,
         });
-        toast.success("Usuario reactivado");
+        toast.success("Personal reactivado");
       }
       setDeactivateTarget(null);
       fetchUsers();
