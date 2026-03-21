@@ -400,7 +400,7 @@ const AdminUsers = () => {
               disabled={submitting}
               className="px-4 py-2 rounded-lg bg-accent text-accent-foreground font-body font-semibold text-sm hover:brightness-110 transition-all disabled:opacity-50"
             >
-              {submitting ? "Guardando..." : editingUser ? "Guardar cambios" : "Crear usuario"}
+              {submitting ? "Guardando..." : editingUser ? "Guardar cambios" : "Crear personal"}
             </button>
           </DialogFooter>
         </DialogContent>
