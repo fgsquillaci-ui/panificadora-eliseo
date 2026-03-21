@@ -158,7 +158,7 @@ const AdminUsers = () => {
           ...(form.email.trim() ? { email: form.email.trim() } : {}),
           ...(form.password ? { password: form.password } : {}),
         });
-        toast.success("Usuario actualizado");
+        toast.success("Personal actualizado");
       } else {
         await invokeManageUsers({
           action: "create-user",
@@ -168,7 +168,7 @@ const AdminUsers = () => {
           phone: form.phone.trim(),
           role: form.role,
         });
-        toast.success("Usuario creado");
+        toast.success("Personal creado");
       }
       setDialogOpen(false);
       fetchUsers();
@@ -184,14 +184,14 @@ const AdminUsers = () => {
     try {
       if (deactivateTarget.is_active) {
         await invokeManageUsers({ action: "deactivate-user", user_id: deactivateTarget.id });
-        toast.success("Usuario desactivado");
+        toast.success("Personal desactivado");
       } else {
         await invokeManageUsers({
           action: "update-user",
           user_id: deactivateTarget.id,
           is_active: true,
         });
-        toast.success("Usuario reactivado");
+        toast.success("Personal reactivado");
       }
       setDeactivateTarget(null);
       fetchUsers();
@@ -205,13 +205,13 @@ const AdminUsers = () => {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <h1 className="font-display text-2xl font-bold">Gestión de usuarios</h1>
+          <h1 className="font-display text-2xl font-bold">Gestión de personal</h1>
           <button
             onClick={openCreate}
             className="flex items-center gap-2 bg-accent text-accent-foreground font-body font-semibold text-sm px-4 py-2.5 rounded-full hover:brightness-110 transition-all"
           >
             <Plus className="w-4 h-4" />
-            Nuevo usuario
+            Nuevo personal
           </button>
         </div>
 
@@ -251,9 +251,9 @@ const AdminUsers = () => {
 
         {/* User list */}
         {loading ? (
-          <p className="text-muted-foreground font-body animate-pulse">Cargando usuarios...</p>
+          <p className="text-muted-foreground font-body animate-pulse">Cargando personal...</p>
         ) : filtered.length === 0 ? (
-          <p className="text-muted-foreground font-body">No se encontraron usuarios.</p>
+          <p className="text-muted-foreground font-body">No se encontró personal.</p>
         ) : (
           <div className="space-y-3">
             {filtered.map((u) => (
@@ -324,8 +324,8 @@ const AdminUsers = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-display">
-              {editingUser ? "Editar usuario" : "Nuevo usuario"}
+             <DialogTitle className="font-display">
+              {editingUser ? "Editar personal" : "Nuevo personal"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -400,7 +400,7 @@ const AdminUsers = () => {
               disabled={submitting}
               className="px-4 py-2 rounded-lg bg-accent text-accent-foreground font-body font-semibold text-sm hover:brightness-110 transition-all disabled:opacity-50"
             >
-              {submitting ? "Guardando..." : editingUser ? "Guardar cambios" : "Crear usuario"}
+              {submitting ? "Guardando..." : editingUser ? "Guardar cambios" : "Crear personal"}
             </button>
           </DialogFooter>
         </DialogContent>
@@ -411,7 +411,7 @@ const AdminUsers = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="font-display">
-              {deactivateTarget?.is_active ? "¿Desactivar usuario?" : "¿Reactivar usuario?"}
+              {deactivateTarget?.is_active ? "¿Desactivar personal?" : "¿Reactivar personal?"}
             </AlertDialogTitle>
             <AlertDialogDescription className="font-body">
               {deactivateTarget?.is_active

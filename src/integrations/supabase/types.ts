@@ -215,6 +215,7 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          customer_id: string | null
           discount_percent: number
           id: string
           is_active: boolean
@@ -223,6 +224,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          customer_id?: string | null
           discount_percent?: number
           id: string
           is_active?: boolean
@@ -231,13 +233,22 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          customer_id?: string | null
           discount_percent?: number
           id?: string
           is_active?: boolean
           name?: string
           phone?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sales: {
         Row: {

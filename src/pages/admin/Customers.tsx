@@ -4,10 +4,12 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Search, Plus, Pencil, UserX, UserCheck, Users } from "lucide-react";
+import { Search, Plus, Pencil, UserX, UserCheck, Users, UserPlus, Eye, EyeOff } from "lucide-react";
+import type { AppRole } from "@/hooks/useRole";
 
 interface Customer {
   id: string;
@@ -21,18 +23,37 @@ interface Customer {
 }
 
 const emptyForm = { name: "", phone: "", address: "" };
+const emptyStaffForm = { email: "", password: "", role: "revendedor" as AppRole };
+
+const allRoles: { value: AppRole; label: string }[] = [
+  { value: "admin", label: "Admin" },
+  { value: "revendedor", label: "Revendedor" },
+  { value: "delivery", label: "Delivery" },
+];
 
 const AdminCustomers = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
+  // Customer CRUD dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
 
+  // Deactivate confirm
   const [deactivateTarget, setDeactivateTarget] = useState<Customer | null>(null);
+
+  // "Asignar como personal" dialog
+  const [staffDialogOpen, setStaffDialogOpen] = useState(false);
+  const [staffTarget, setStaffTarget] = useState<Customer | null>(null);
+  const [staffForm, setStaffForm] = useState(emptyStaffForm);
+  const [staffSubmitting, setStaffSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Track which customers are already staff
+  const [staffCustomerIds, setStaffCustomerIds] = useState<Set<string>>(new Set());
 
   const fetchCustomers = async () => {
     const { data } = await supabase
@@ -43,8 +64,18 @@ const AdminCustomers = () => {
     setLoading(false);
   };
 
+  const fetchStaffLinks = async () => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("customer_id")
+      .not("customer_id", "is", null);
+    const ids = new Set((data || []).map((p: any) => p.customer_id as string));
+    setStaffCustomerIds(ids);
+  };
+
   useEffect(() => {
     fetchCustomers();
+    fetchStaffLinks();
 
     const channel = supabase
       .channel("admin-customers-rt")
@@ -76,7 +107,6 @@ const AdminCustomers = () => {
   const handleSubmit = async () => {
     if (!form.name.trim()) { toast.error("El nombre es obligatorio"); return; }
 
-    // Check unique phone
     if (form.phone.trim()) {
       const { data: existing } = await supabase
         .from("customers")
@@ -123,6 +153,53 @@ const AdminCustomers = () => {
     setDeactivateTarget(null);
   };
 
+  // Staff assignment
+  const openStaffDialog = (c: Customer) => {
+    setStaffTarget(c);
+    setStaffForm(emptyStaffForm);
+    setShowPassword(false);
+    setStaffDialogOpen(true);
+  };
+
+  const invokeManageUsers = async (body: Record<string, unknown>) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await supabase.functions.invoke("manage-users", {
+      body,
+      headers: session?.access_token
+        ? { Authorization: `Bearer ${session.access_token}` }
+        : undefined,
+    });
+    if (res.error) throw new Error(res.error.message);
+    if (res.data?.error) throw new Error(res.data.error);
+    return res.data;
+  };
+
+  const handleStaffSubmit = async () => {
+    if (!staffTarget) return;
+    if (!staffForm.email.trim()) { toast.error("El email es obligatorio"); return; }
+    if (staffForm.password.length < 6) { toast.error("Contraseña mínimo 6 caracteres"); return; }
+
+    setStaffSubmitting(true);
+    try {
+      await invokeManageUsers({
+        action: "create-user",
+        email: staffForm.email.trim(),
+        password: staffForm.password,
+        name: staffTarget.name,
+        phone: staffTarget.phone || "",
+        role: staffForm.role,
+        customer_id: staffTarget.id,
+      });
+      toast.success(`${staffTarget.name} asignado como personal`);
+      setStaffDialogOpen(false);
+      fetchStaffLinks();
+    } catch (err: any) {
+      toast.error(err.message || "Error al asignar personal");
+    } finally {
+      setStaffSubmitting(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -164,11 +241,22 @@ const AdminCustomers = () => {
                     {c.created_by === "revendedor" && (
                       <Badge className="border-0 text-[10px] font-body bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">Revendedor</Badge>
                     )}
+                    {staffCustomerIds.has(c.id) && (
+                      <Badge className="border-0 text-[10px] font-body bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300">Personal</Badge>
+                    )}
                   </div>
                   {c.phone && <p className="font-body text-xs text-muted-foreground">📱 {c.phone}</p>}
                   {c.address && <p className="font-body text-xs text-muted-foreground">📍 {c.address}</p>}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {c.is_active && !staffCustomerIds.has(c.id) && (
+                    <button
+                      onClick={() => openStaffDialog(c)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 font-body text-xs hover:bg-violet-200 dark:hover:bg-violet-900/50 transition-colors"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" /> Asignar como personal
+                    </button>
+                  )}
                   <button onClick={() => openEdit(c)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary text-secondary-foreground font-body text-xs hover:bg-secondary/80 transition-colors">
                     <Pencil className="w-3.5 h-3.5" /> Editar
                   </button>
@@ -185,6 +273,7 @@ const AdminCustomers = () => {
         )}
       </div>
 
+      {/* Create/Edit Customer Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -213,6 +302,7 @@ const AdminCustomers = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Deactivate/Reactivate Confirm */}
       <AlertDialog open={!!deactivateTarget} onOpenChange={(open) => !open && setDeactivateTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -229,6 +319,71 @@ const AdminCustomers = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Asignar como personal Dialog */}
+      <Dialog open={staffDialogOpen} onOpenChange={setStaffDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display">Asignar como personal</DialogTitle>
+          </DialogHeader>
+          <p className="font-body text-sm text-muted-foreground">
+            Crear cuenta de acceso para <strong>{staffTarget?.name}</strong>
+            {staffTarget?.phone && ` (${staffTarget.phone})`}
+          </p>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="font-body text-sm">Email *</Label>
+              <Input
+                type="email"
+                value={staffForm.email}
+                onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })}
+                placeholder="personal@email.com"
+              />
+            </div>
+            <div>
+              <Label className="font-body text-sm">Contraseña *</Label>
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  value={staffForm.password}
+                  onChange={(e) => setStaffForm({ ...staffForm, password: e.target.value })}
+                  placeholder="Mínimo 6 caracteres"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+            <div>
+              <Label className="font-body text-sm">Rol</Label>
+              <Select value={staffForm.role} onValueChange={(v) => setStaffForm({ ...staffForm, role: v as AppRole })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {allRoles.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <button onClick={() => setStaffDialogOpen(false)} className="px-4 py-2 rounded-lg font-body text-sm text-muted-foreground hover:bg-secondary transition-colors">Cancelar</button>
+            <button
+              onClick={handleStaffSubmit}
+              disabled={staffSubmitting}
+              className="px-4 py-2 rounded-lg bg-violet-600 text-white font-body font-semibold text-sm hover:bg-violet-700 transition-all disabled:opacity-50"
+            >
+              {staffSubmitting ? "Asignando..." : "Asignar personal"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
