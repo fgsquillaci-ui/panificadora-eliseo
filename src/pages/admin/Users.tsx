@@ -168,7 +168,7 @@ const AdminUsers = () => {
           phone: form.phone.trim(),
           role: form.role,
         });
-        toast.success("Usuario creado");
+        toast.success("Personal creado");
       }
       setDialogOpen(false);
       fetchUsers();
