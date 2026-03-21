@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     const { action, ...payload } = await req.json();
 
     if (action === "create-user") {
-      const { email, password, name, phone, role } = payload;
+      const { email, password, name, phone, role, customer_id } = payload;
 
       // Check phone uniqueness
       if (phone) {
