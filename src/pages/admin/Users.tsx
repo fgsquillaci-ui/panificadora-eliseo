@@ -158,7 +158,7 @@ const AdminUsers = () => {
           ...(form.email.trim() ? { email: form.email.trim() } : {}),
           ...(form.password ? { password: form.password } : {}),
         });
-        toast.success("Usuario actualizado");
+        toast.success("Personal actualizado");
       } else {
         await invokeManageUsers({
           action: "create-user",
