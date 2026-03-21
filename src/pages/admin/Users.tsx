@@ -411,7 +411,7 @@ const AdminUsers = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="font-display">
-              {deactivateTarget?.is_active ? "¿Desactivar usuario?" : "¿Reactivar usuario?"}
+              {deactivateTarget?.is_active ? "¿Desactivar personal?" : "¿Reactivar personal?"}
             </AlertDialogTitle>
             <AlertDialogDescription className="font-body">
               {deactivateTarget?.is_active
