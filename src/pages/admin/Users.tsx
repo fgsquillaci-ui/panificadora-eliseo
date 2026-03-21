@@ -324,8 +324,8 @@ const AdminUsers = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-display">
-              {editingUser ? "Editar usuario" : "Nuevo usuario"}
+             <DialogTitle className="font-display">
+              {editingUser ? "Editar personal" : "Nuevo personal"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
