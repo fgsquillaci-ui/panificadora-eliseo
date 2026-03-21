@@ -72,10 +72,10 @@ Deno.serve(async (req) => {
 
       const userId = newUser.user.id;
 
-      // Ensure profile exists (trigger should create it, but update name/phone)
+      // Ensure profile exists (trigger should create it, but update name/phone/customer_id)
       await supabaseAdmin
         .from("profiles")
-        .upsert({ id: userId, name, phone: phone || null }, { onConflict: "id" });
+        .upsert({ id: userId, name, phone: phone || null, ...(customer_id ? { customer_id } : {}) }, { onConflict: "id" });
 
       // Assign role
       if (role) {
