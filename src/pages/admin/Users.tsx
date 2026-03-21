@@ -251,9 +251,9 @@ const AdminUsers = () => {
 
         {/* User list */}
         {loading ? (
-          <p className="text-muted-foreground font-body animate-pulse">Cargando usuarios...</p>
+          <p className="text-muted-foreground font-body animate-pulse">Cargando personal...</p>
         ) : filtered.length === 0 ? (
-          <p className="text-muted-foreground font-body">No se encontraron usuarios.</p>
+          <p className="text-muted-foreground font-body">No se encontró personal.</p>
         ) : (
           <div className="space-y-3">
             {filtered.map((u) => (
