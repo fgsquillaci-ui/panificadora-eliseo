@@ -205,13 +205,13 @@ const AdminUsers = () => {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <h1 className="font-display text-2xl font-bold">Gestión de usuarios</h1>
+          <h1 className="font-display text-2xl font-bold">Gestión de personal</h1>
           <button
             onClick={openCreate}
             className="flex items-center gap-2 bg-accent text-accent-foreground font-body font-semibold text-sm px-4 py-2.5 rounded-full hover:brightness-110 transition-all"
           >
             <Plus className="w-4 h-4" />
-            Nuevo usuario
+            Nuevo personal
           </button>
         </div>
 
