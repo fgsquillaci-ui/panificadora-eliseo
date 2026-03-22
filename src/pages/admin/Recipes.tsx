@@ -13,7 +13,7 @@ import { Trash2, Plus } from "lucide-react";
 const fmt = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
 const Recipes = () => {
-  const { products } = useProducts();
+  const { data: products = [] } = useProducts();
   const { ingredients } = useIngredients();
   const [selectedProduct, setSelectedProduct] = useState<string>("");
   const { recipes, totalCost, addLine, removeLine, loading } = useRecipes(selectedProduct || undefined);
