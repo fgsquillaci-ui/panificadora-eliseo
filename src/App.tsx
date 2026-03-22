@@ -13,6 +13,9 @@ import AdminDashboard from "./pages/admin/Dashboard.tsx";
 import AdminOrders from "./pages/admin/Orders.tsx";
 import AdminUsers from "./pages/admin/Users.tsx";
 import AdminCustomers from "./pages/admin/Customers.tsx";
+import OwnerDashboard from "./pages/admin/OwnerDashboard.tsx";
+import IngredientsPage from "./pages/admin/Ingredients.tsx";
+import RecipesPage from "./pages/admin/Recipes.tsx";
 import RevendedorDashboard from "./pages/revendedor/Dashboard.tsx";
 import RevendedorCustomers from "./pages/revendedor/Customers.tsx";
 import DeliveryDashboard from "./pages/delivery/Dashboard.tsx";
@@ -36,6 +39,9 @@ const App = () => (
             <Route path="/admin/pedidos" element={<ProtectedRoute allowedRoles={["admin"]}><AdminOrders /></ProtectedRoute>} />
             <Route path="/admin/usuarios" element={<ProtectedRoute allowedRoles={["admin"]}><AdminUsers /></ProtectedRoute>} />
             <Route path="/admin/clientes" element={<ProtectedRoute allowedRoles={["admin"]}><AdminCustomers /></ProtectedRoute>} />
+            <Route path="/admin/finanzas" element={<ProtectedRoute allowedRoles={["admin"]}><OwnerDashboard /></ProtectedRoute>} />
+            <Route path="/admin/ingredientes" element={<ProtectedRoute allowedRoles={["admin"]}><IngredientsPage /></ProtectedRoute>} />
+            <Route path="/admin/recetas" element={<ProtectedRoute allowedRoles={["admin"]}><RecipesPage /></ProtectedRoute>} />
 
             {/* Revendedor routes */}
             <Route path="/revendedor" element={<ProtectedRoute allowedRoles={["revendedor"]}><RevendedorDashboard /></ProtectedRoute>} />
