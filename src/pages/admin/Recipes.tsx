@@ -60,9 +60,9 @@ const Recipes = () => {
                 </CardTitle>
                 <Badge variant="secondary">Costo: {fmt(totalCost)}</Badge>
               </div>
-              {selectedP?.retail_price && (
+              {selectedP?.price != null && selectedP.price > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Precio venta: {fmt(selectedP.retail_price)} — Margen: {totalCost > 0 ? `${(((selectedP.retail_price - totalCost) / selectedP.retail_price) * 100).toFixed(1)}%` : "—"}
+                  Precio venta: {fmt(selectedP.price)} — Margen: {totalCost > 0 ? `${(((selectedP.price - totalCost) / selectedP.price) * 100).toFixed(1)}%` : "—"}
                 </p>
               )}
             </CardHeader>
