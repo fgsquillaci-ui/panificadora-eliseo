@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      cash_movements: {
+        Row: {
+          amount: number
+          created_at: string
+          date: string
+          description: string
+          id: string
+          type: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          type?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          type?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null
@@ -78,6 +105,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      expenses: {
+        Row: {
+          amount: number
+          created_at: string
+          date: string
+          description: string
+          id: string
+          type: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          type?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          type?: string
+        }
+        Relationships: []
+      }
+      ingredients: {
+        Row: {
+          costo_unitario: number
+          created_at: string
+          id: string
+          name: string
+          stock_actual: number
+          stock_minimo: number
+          unit: string
+        }
+        Insert: {
+          costo_unitario?: number
+          created_at?: string
+          id?: string
+          name: string
+          stock_actual?: number
+          stock_minimo?: number
+          unit?: string
+        }
+        Update: {
+          costo_unitario?: number
+          created_at?: string
+          id?: string
+          name?: string
+          stock_actual?: number
+          stock_minimo?: number
+          unit?: string
+        }
+        Relationships: []
       }
       order_items: {
         Row: {
@@ -246,6 +330,42 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recipes: {
+        Row: {
+          id: string
+          ingredient_id: string
+          product_id: string
+          quantity: number
+        }
+        Insert: {
+          id?: string
+          ingredient_id: string
+          product_id: string
+          quantity?: number
+        }
+        Update: {
+          id?: string
+          ingredient_id?: string
+          product_id?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipes_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recipes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
