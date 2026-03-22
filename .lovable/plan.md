@@ -1,74 +1,142 @@
 
 
-## Optimización del sistema: clientes, personal y pedidos
+## Panel del Dueño — Implementacion completa
 
-### Resumen
+### Arquitectura de datos
 
-Renombrar "Usuarios" a "Personal", agregar botón "Asignar como personal" en clientes, y vincular profiles con customers. El flujo de creación automática de clientes desde pedidos ya funciona via CustomerPicker.
+**Tablas nuevas** (4 migraciones):
 
----
+```text
+ingredients
+├── id (uuid PK)
+├── name (text)
+├── unit (text) — "kg", "litro", "unidad"
+├── stock_actual (numeric, default 0)
+├── stock_minimo (numeric, default 0)
+├── costo_unitario (integer, centavos)
+├── created_at (timestamptz)
 
-### 1. Migración de base de datos
+recipes
+├── id (uuid PK)
+├── product_id (uuid FK → products)
+├── ingredient_id (uuid FK → ingredients)
+├── quantity (numeric) — cantidad por unidad de producto
 
-Agregar `customer_id` (uuid, nullable, FK a customers) en la tabla `profiles` para vincular personal con su registro de cliente.
+expenses
+├── id (uuid PK)
+├── type (text) — "insumo", "servicio", "salario", "otro"
+├── description (text)
+├── amount (integer, centavos)
+├── date (date)
+├── created_at (timestamptz)
 
-```sql
-ALTER TABLE profiles ADD COLUMN customer_id uuid REFERENCES customers(id);
+cash_movements
+├── id (uuid PK)
+├── type (text) — "ingreso", "egreso", "retiro"
+├── description (text)
+├── amount (integer)
+├── date (date)
+├── created_at (timestamptz)
 ```
 
-### 2. Renombrar "Usuarios" → "Personal"
+RLS: Solo admin puede leer/escribir en las 4 tablas.
 
-**Archivos**: `DashboardLayout.tsx`, `Users.tsx`
+Realtime: Habilitar `ingredients`, `expenses`, `cash_movements` en `supabase_realtime`.
 
-- Sidebar: "Usuarios" → "Personal", path mantiene `/admin/usuarios`
-- Título h1: "Gestión de usuarios" → "Gestión de personal"
-- Botón: "Nuevo usuario" → "Nuevo personal"
-- Textos internos del dialog y confirmaciones actualizados
+### Flujo de datos
 
-### 3. Botón "Asignar como personal" en Admin Customers
+```text
+orders (entregado) → Ingresos
+    └── order_items.product_name → products → recipes → ingredients → Costo
+expenses → Gastos operativos
+cash_movements → Flujo de caja
+ingredients.stock_actual → Stock
+```
 
-**Archivo**: `src/pages/admin/Customers.tsx`
+- **Ingresos**: `SUM(total)` de orders con `status = 'entregado'`
+- **Costo por producto**: `SUM(recipe.quantity * ingredient.costo_unitario)` por producto
+- **Ganancia**: Ingresos - Costos estimados - Gastos
+- **Stock**: Se descuenta manualmente o al registrar venta (futuro)
 
-- Agregar botón en cada card de cliente activo: "Asignar como personal"
-- Al hacer click: abre dialog con email, contraseña y selector de rol (admin/revendedor/delivery)
-- Nombre y teléfono se precargan del cliente
-- Al confirmar:
-  1. Llama a `manage-users` edge function con action `create-user` + `customer_id`
-  2. Actualiza `profiles.customer_id` con el id del cliente
+### Navegacion
 
-### 4. Actualizar Edge Function `manage-users`
+Agregar al sidebar admin en `DashboardLayout.tsx`:
+- "Finanzas" → `/admin/finanzas` (icon: DollarSign)
+- "Ingredientes" → `/admin/ingredientes` (icon: Wheat)
 
-**Archivo**: `supabase/functions/manage-users/index.ts`
+Agregar rutas en `App.tsx`:
+- `/admin/finanzas` → `OwnerDashboard`
+- `/admin/ingredientes` → `IngredientsPage`
 
-- En action `create-user`: aceptar campo opcional `customer_id`, y si se provee, guardarlo en `profiles.customer_id` tras crear el usuario
+### Paginas nuevas (3 archivos)
 
-### 5. Indicador visual en lista de clientes
+**1. `src/pages/admin/OwnerDashboard.tsx`** — Panel principal del dueño
 
-En `AdminCustomers`, si un cliente tiene un perfil vinculado (staff), mostrar badge "Personal" junto a su nombre para distinguirlo visualmente.
+- **KPI Cards** (hoy / semana / mes toggle):
+  - Ingresos (verde)
+  - Costos estimados (naranja)  
+  - Ganancia neta (verde/rojo)
+  - Margen % (verde/amarillo/rojo)
+  - Dinero disponible
 
-- Consultar profiles donde `customer_id` está en los IDs de clientes cargados
-- Mostrar badge violeta "Personal" en esos clientes
+- **Ranking de productos**: tabla con producto, unidades vendidas, ingreso, costo, margen %. Ordenado por margen. Alerta visual si margen < 20%.
 
-### 6. Indicador en lista de personal
+- **Alertas inteligentes**: cards con:
+  - Stock bajo (ingredientes bajo minimo)
+  - Margen bajo por producto (< 20%)
+  - Gastos altos (> 50% de ingresos)
 
-En `AdminUsers` (ahora "Personal"), mostrar el nombre del cliente vinculado si existe `customer_id` en el profile.
+- **Flujo de caja**: lista de cash_movements reciente + formulario para agregar movimiento (ingreso/egreso/retiro). Bloquear retiro si supera ganancia disponible.
 
----
+- **Gastos**: lista de expenses + formulario para agregar gasto.
 
-### Archivos a modificar
+**2. `src/pages/admin/Ingredients.tsx`** — Gestion de ingredientes
 
-| Archivo | Cambio |
+- CRUD de ingredientes (nombre, unidad, stock, stock minimo, costo)
+- Indicador visual de stock: verde (OK), amarillo (cerca del minimo), rojo (critico)
+
+**3. `src/pages/admin/Recipes.tsx`** — Recetas por producto (o inline en Ingredients)
+
+- Seleccionar producto → definir ingredientes y cantidades
+- Calcular costo automaticamente
+- Accesible desde OwnerDashboard como drill-down
+
+### Hooks nuevos
+
+- `useFinancialData(period)` — consulta orders entregados + expenses + cash_movements para el periodo
+- `useIngredients()` — CRUD de ingredientes con realtime
+- `useRecipes(productId?)` — CRUD de recetas, calculo de costo por producto
+- `useProductProfitability(period)` — join order_items → products → recipes → ingredients para ranking
+
+### Calculo de costos
+
+```text
+Costo unitario producto = SUM(recipe.quantity * ingredient.costo_unitario)
+Costo total vendido = SUM(order_items.quantity * costo_unitario_producto)
+Margen = (precio_venta - costo) / precio_venta * 100
+```
+
+Para productos sin receta definida: mostrar "Sin receta" y excluir del calculo de costos.
+
+### Archivos a crear/modificar
+
+| Archivo | Accion |
 |---------|--------|
-| Migración SQL | Agregar `customer_id` a `profiles` |
-| `supabase/functions/manage-users/index.ts` | Soportar `customer_id` en `create-user` |
-| `src/components/DashboardLayout.tsx` | Renombrar "Usuarios" → "Personal" |
-| `src/pages/admin/Users.tsx` | Renombrar textos a "Personal" |
-| `src/pages/admin/Customers.tsx` | Botón "Asignar como personal" + dialog + badge |
+| Migracion SQL | Crear 4 tablas + RLS + realtime |
+| `src/pages/admin/OwnerDashboard.tsx` | Nuevo — panel financiero |
+| `src/pages/admin/Ingredients.tsx` | Nuevo — gestion ingredientes |
+| `src/pages/admin/Recipes.tsx` | Nuevo — recetas por producto |
+| `src/hooks/useFinancialData.ts` | Nuevo |
+| `src/hooks/useIngredients.ts` | Nuevo |
+| `src/hooks/useRecipes.ts` | Nuevo |
+| `src/hooks/useProductProfitability.ts` | Nuevo |
+| `src/components/DashboardLayout.tsx` | Agregar 2 nav items |
+| `src/App.tsx` | Agregar 3 rutas protegidas |
 
 ### Lo que NO se modifica
 
-- Flujo de pedidos (CustomerPicker ya crea clientes automáticamente)
-- Dashboards de revendedor y delivery
-- Lógica de roles y RLS existente
-- Tabla customers (estructura sin cambios)
+- Dashboards de pedidos, clientes, personal, revendedor, delivery
+- Tabla orders, order_items, customers, profiles
+- Flujo de creacion de pedidos
+- Edge functions existentes
 
