@@ -1,142 +1,88 @@
 
 
-## Panel del Dueño — Implementacion completa
+## Hardening del Sistema — Plan de Implementacion
 
-### Arquitectura de datos
+### Diagnostico
 
-**Tablas nuevas** (4 migraciones):
+El sistema actual es funcional pero tiene gaps para uso real:
+- No hay validacion server-side del total del pedido
+- No hay historial de cambios en pedidos
+- No hay log de errores
+- No hay confirmacion antes de crear pedido
+- El delivery ya muestra items correctamente via `OrderDetail` (no hay bug ahi)
+
+### 1. Migracion de base de datos
+
+Crear 2 tablas nuevas + 1 trigger de validacion:
 
 ```text
-ingredients
+order_history
 ├── id (uuid PK)
-├── name (text)
-├── unit (text) — "kg", "litro", "unidad"
-├── stock_actual (numeric, default 0)
-├── stock_minimo (numeric, default 0)
-├── costo_unitario (integer, centavos)
+├── order_id (uuid FK → orders)
+├── action (text) — "created", "status_change", "edited"
+├── old_value (text, nullable)
+├── new_value (text, nullable)
+├── user_id (uuid)
 ├── created_at (timestamptz)
 
-recipes
+error_logs
 ├── id (uuid PK)
-├── product_id (uuid FK → products)
-├── ingredient_id (uuid FK → ingredients)
-├── quantity (numeric) — cantidad por unidad de producto
-
-expenses
-├── id (uuid PK)
-├── type (text) — "insumo", "servicio", "salario", "otro"
-├── description (text)
-├── amount (integer, centavos)
-├── date (date)
-├── created_at (timestamptz)
-
-cash_movements
-├── id (uuid PK)
-├── type (text) — "ingreso", "egreso", "retiro"
-├── description (text)
-├── amount (integer)
-├── date (date)
+├── message (text)
+├── context (jsonb)
 ├── created_at (timestamptz)
 ```
 
-RLS: Solo admin puede leer/escribir en las 4 tablas.
+RLS: Admin-only para ambas. Realtime en `order_history`.
 
-Realtime: Habilitar `ingredients`, `expenses`, `cash_movements` en `supabase_realtime`.
+Trigger en `orders`: al hacer UPDATE de status, insertar automaticamente en `order_history` con old/new status y `auth.uid()`.
 
-### Flujo de datos
+### 2. Validacion de total en CreateOrderForm
 
-```text
-orders (entregado) → Ingresos
-    └── order_items.product_name → products → recipes → ingredients → Costo
-expenses → Gastos operativos
-cash_movements → Flujo de caja
-ingredients.stock_actual → Stock
-```
+Antes de guardar el pedido, recalcular total desde los items del carrito y comparar. Si no coincide, bloquear. Agregar validaciones:
+- No permitir items con quantity <= 0
+- No permitir total = 0
+- No permitir pedido sin cliente
+- No permitir pedido sin items
 
-- **Ingresos**: `SUM(total)` de orders con `status = 'entregado'`
-- **Costo por producto**: `SUM(recipe.quantity * ingredient.costo_unitario)` por producto
-- **Ganancia**: Ingresos - Costos estimados - Gastos
-- **Stock**: Se descuenta manualmente o al registrar venta (futuro)
+Ya existen las primeras 2 validaciones (cliente + items vacios). Agregar validacion de total y quantity.
 
-### Navegacion
+### 3. Paso de confirmacion antes de crear pedido
 
-Agregar al sidebar admin en `DashboardLayout.tsx`:
-- "Finanzas" → `/admin/finanzas` (icon: DollarSign)
-- "Ingredientes" → `/admin/ingredientes` (icon: Wheat)
+En `CreateOrderForm.tsx`, agregar un estado `showConfirmation` que muestra un resumen (cliente, items, total, tipo de entrega) antes de ejecutar el insert. El usuario confirma o vuelve a editar.
 
-Agregar rutas en `App.tsx`:
-- `/admin/finanzas` → `OwnerDashboard`
-- `/admin/ingredientes` → `IngredientsPage`
+### 4. Registro de historial en cambios de estado
 
-### Paginas nuevas (3 archivos)
+En `AdminDashboard.tsx` y `AdminOrders.tsx`, despues de cada `update` exitoso de status, insertar un registro en `order_history`. Mismo tratamiento en `DeliveryDashboard.tsx` al marcar entregado.
 
-**1. `src/pages/admin/OwnerDashboard.tsx`** — Panel principal del dueño
+Crear helper `logOrderAction(orderId, action, oldValue, newValue)` reutilizable.
 
-- **KPI Cards** (hoy / semana / mes toggle):
-  - Ingresos (verde)
-  - Costos estimados (naranja)  
-  - Ganancia neta (verde/rojo)
-  - Margen % (verde/amarillo/rojo)
-  - Dinero disponible
+### 5. Log de errores centralizado
 
-- **Ranking de productos**: tabla con producto, unidades vendidas, ingreso, costo, margen %. Ordenado por margen. Alerta visual si margen < 20%.
+Crear utility `logError(message, context)` que inserta en `error_logs`. Usar en los catch de:
+- Creacion de pedidos
+- Cambio de estado
+- Creacion de clientes
 
-- **Alertas inteligentes**: cards con:
-  - Stock bajo (ingredientes bajo minimo)
-  - Margen bajo por producto (< 20%)
-  - Gastos altos (> 50% de ingresos)
+### 6. Registro automatico de historial al crear pedido
 
-- **Flujo de caja**: lista de cash_movements reciente + formulario para agregar movimiento (ingreso/egreso/retiro). Bloquear retiro si supera ganancia disponible.
-
-- **Gastos**: lista de expenses + formulario para agregar gasto.
-
-**2. `src/pages/admin/Ingredients.tsx`** — Gestion de ingredientes
-
-- CRUD de ingredientes (nombre, unidad, stock, stock minimo, costo)
-- Indicador visual de stock: verde (OK), amarillo (cerca del minimo), rojo (critico)
-
-**3. `src/pages/admin/Recipes.tsx`** — Recetas por producto (o inline en Ingredients)
-
-- Seleccionar producto → definir ingredientes y cantidades
-- Calcular costo automaticamente
-- Accesible desde OwnerDashboard como drill-down
-
-### Hooks nuevos
-
-- `useFinancialData(period)` — consulta orders entregados + expenses + cash_movements para el periodo
-- `useIngredients()` — CRUD de ingredientes con realtime
-- `useRecipes(productId?)` — CRUD de recetas, calculo de costo por producto
-- `useProductProfitability(period)` — join order_items → products → recipes → ingredients para ranking
-
-### Calculo de costos
-
-```text
-Costo unitario producto = SUM(recipe.quantity * ingredient.costo_unitario)
-Costo total vendido = SUM(order_items.quantity * costo_unitario_producto)
-Margen = (precio_venta - costo) / precio_venta * 100
-```
-
-Para productos sin receta definida: mostrar "Sin receta" y excluir del calculo de costos.
+Despues de crear pedido exitosamente en `CreateOrderForm`, insertar `order_history` con action = "created".
 
 ### Archivos a crear/modificar
 
 | Archivo | Accion |
 |---------|--------|
-| Migracion SQL | Crear 4 tablas + RLS + realtime |
-| `src/pages/admin/OwnerDashboard.tsx` | Nuevo — panel financiero |
-| `src/pages/admin/Ingredients.tsx` | Nuevo — gestion ingredientes |
-| `src/pages/admin/Recipes.tsx` | Nuevo — recetas por producto |
-| `src/hooks/useFinancialData.ts` | Nuevo |
-| `src/hooks/useIngredients.ts` | Nuevo |
-| `src/hooks/useRecipes.ts` | Nuevo |
-| `src/hooks/useProductProfitability.ts` | Nuevo |
-| `src/components/DashboardLayout.tsx` | Agregar 2 nav items |
-| `src/App.tsx` | Agregar 3 rutas protegidas |
+| Migracion SQL | 2 tablas + trigger |
+| `src/lib/orderHistory.ts` | Nuevo — helper logOrderAction + logError |
+| `src/components/CreateOrderForm.tsx` | Confirmacion + validacion total + log |
+| `src/pages/admin/Dashboard.tsx` | Usar logOrderAction en cambios de estado |
+| `src/pages/admin/Orders.tsx` | Usar logOrderAction en cambios de estado |
+| `src/pages/delivery/Dashboard.tsx` | Usar logOrderAction al marcar entregado |
 
 ### Lo que NO se modifica
 
-- Dashboards de pedidos, clientes, personal, revendedor, delivery
-- Tabla orders, order_items, customers, profiles
-- Flujo de creacion de pedidos
-- Edge functions existentes
+- Estructura de orders, order_items, customers
+- Dashboards de revendedor, clientes, personal, finanzas
+- Edge functions
+- Logica de CustomerPicker (ya funciona bien)
+- OrderDetail (ya muestra items correctamente)
 
