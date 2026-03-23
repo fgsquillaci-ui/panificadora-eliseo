@@ -21,6 +21,7 @@ const DeliveryDashboard = () => {
       .eq("id", orderId);
     if (error) {
       toast.error("Error al marcar como entregado");
+      logError("Delivery mark entregado failed", { orderId, error });
     } else {
       toast.success("¡Pedido marcado como entregado!");
     }

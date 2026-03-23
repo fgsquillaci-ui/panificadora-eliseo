@@ -56,6 +56,7 @@ const AdminDashboard = () => {
       .eq("id", orderId);
     if (error) {
       toast.error("Error al actualizar estado");
+      logError("Status change failed", { orderId, newStatus, error });
     } else {
       toast.success(`Estado → ${statusLabels[newStatus]}`);
     }
