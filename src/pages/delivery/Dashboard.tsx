@@ -5,6 +5,7 @@ import { useRealtimeOrders } from "@/hooks/useRealtimeOrders";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, MapPin, Clock, Package } from "lucide-react";
 import { toast } from "sonner";
+import { logError } from "@/lib/orderHistory";
 
 const DeliveryDashboard = () => {
   // Fetch ALL orders with status en_delivery directly — no deliveries table dependency
@@ -20,6 +21,7 @@ const DeliveryDashboard = () => {
       .eq("id", orderId);
     if (error) {
       toast.error("Error al marcar como entregado");
+      logError("Delivery mark entregado failed", { orderId, error });
     } else {
       toast.success("¡Pedido marcado como entregado!");
     }

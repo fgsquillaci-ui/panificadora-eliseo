@@ -8,6 +8,7 @@ import { CheckCircle, Clock, TrendingUp, Plus, Factory, PackageCheck, Truck, Und
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { logError } from "@/lib/orderHistory";
 
 type OrderStatus = "pendiente" | "en_produccion" | "listo" | "en_delivery" | "entregado";
 
@@ -55,6 +56,7 @@ const AdminDashboard = () => {
       .eq("id", orderId);
     if (error) {
       toast.error("Error al actualizar estado");
+      logError("Status change failed", { orderId, newStatus, error });
     } else {
       toast.success(`Estado → ${statusLabels[newStatus]}`);
     }

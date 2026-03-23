@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, Minus, ShoppingCart, Loader2 } from "lucide-react";
+import { Plus, Minus, ShoppingCart, Loader2, ArrowLeft, CheckCircle } from "lucide-react";
+import { logOrderAction, logError } from "@/lib/orderHistory";
 
 interface CartItem {
   productId: string;
@@ -36,6 +37,7 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
   const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
   const [address, setAddress] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   const handleCustomerSelect = (customer: SelectedCustomer | null) => {
     setSelectedCustomer(customer);
@@ -64,24 +66,46 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
 
   const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
 
-  const handleSubmit = async () => {
-    if (!user) return;
+  const validateOrder = (): boolean => {
     if (!selectedCustomer) {
       toast.error("Seleccioná un cliente");
-      return;
+      return false;
     }
     if (cart.length === 0) {
       toast.error("Agregá al menos un producto");
-      return;
+      return false;
     }
+    const invalidItems = cart.filter((i) => i.quantity <= 0);
+    if (invalidItems.length > 0) {
+      toast.error("Hay productos con cantidad inválida");
+      return false;
+    }
+    const recalculated = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+    if (recalculated !== total || total === 0) {
+      toast.error("Error en el cálculo del total. Revisá el carrito.");
+      logError("Total mismatch on order creation", { recalculated, total, cart });
+      return false;
+    }
+    return true;
+  };
+
+  const handleReview = () => {
+    if (validateOrder()) {
+      setShowConfirmation(true);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!user) return;
+    if (!validateOrder()) return;
 
     setSaving(true);
     const { data: order, error } = await supabase
       .from("orders")
       .insert({
-        customer_name: selectedCustomer.name,
-        customer_phone: selectedCustomer.phone || null,
-        customer_id: selectedCustomer.id,
+        customer_name: selectedCustomer!.name,
+        customer_phone: selectedCustomer!.phone || null,
+        customer_id: selectedCustomer!.id,
         address: address.trim() || null,
         delivery_type: address.trim() ? "delivery" : "retiro",
         total,
@@ -95,6 +119,7 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
 
     if (error || !order) {
       toast.error("Error al crear pedido");
+      logError("Order creation failed", { error, customer: selectedCustomer?.name });
       setSaving(false);
       return;
     }
@@ -110,8 +135,10 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
     const { error: itemsError } = await supabase.from("order_items").insert(items);
     if (itemsError) {
       toast.error("Error al guardar productos del pedido");
+      logError("Order items insert failed", { error: itemsError, orderId: order.id });
     } else {
       toast.success("¡Pedido creado!");
+      logOrderAction(order.id, "created", null, `total:${total}`);
       onSuccess();
     }
     setSaving(false);
@@ -121,9 +148,59 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
     return <p className="font-body text-sm text-muted-foreground animate-pulse">Cargando productos...</p>;
   }
 
+  // Confirmation step
+  if (showConfirmation) {
+    return (
+      <div className="space-y-4">
+        <h3 className="font-display text-lg font-semibold">Confirmar pedido</h3>
+
+        <div className="rounded-lg border bg-secondary/20 p-4 space-y-3">
+          <div className="space-y-1">
+            <p className="font-body text-xs text-muted-foreground">Cliente</p>
+            <p className="font-body text-sm font-semibold">{selectedCustomer?.name}</p>
+            {selectedCustomer?.phone && (
+              <p className="font-body text-xs text-muted-foreground">{selectedCustomer.phone}</p>
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <p className="font-body text-xs text-muted-foreground">Entrega</p>
+            <p className="font-body text-sm">
+              {address.trim() ? `📍 ${address}` : "🏪 Retiro en local"}
+            </p>
+          </div>
+
+          <div className="border-t pt-2 space-y-1.5">
+            <p className="font-body text-xs text-muted-foreground">Productos</p>
+            {cart.map((item) => (
+              <div key={item.productId} className="flex justify-between font-body text-sm">
+                <span>{item.name} ×{item.quantity}</span>
+                <span className="font-semibold">${(item.price * item.quantity).toLocaleString("es-AR")}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t pt-2 flex justify-between">
+            <span className="font-body text-sm font-bold">Total</span>
+            <span className="font-body text-sm font-bold">${total.toLocaleString("es-AR")}</span>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowConfirmation(false)} className="flex-1 gap-1.5 font-body">
+            <ArrowLeft className="w-4 h-4" /> Editar
+          </Button>
+          <Button onClick={handleSubmit} disabled={saving} className="flex-1 gap-1.5 font-body">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+            {saving ? "Guardando..." : "Confirmar"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-      {/* Customer picker */}
       <CustomerPicker
         selectedCustomer={selectedCustomer}
         onSelect={handleCustomerSelect}
@@ -131,13 +208,11 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
         resellerId={createdBy === "revendedor" ? user?.id || null : null}
       />
 
-      {/* Address override */}
       <div className="space-y-1.5">
         <Label className="font-body text-xs">Dirección (vacío = retiro en local)</Label>
         <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Av. Corrientes 1234" />
       </div>
 
-      {/* Product selector */}
       <div className="space-y-2">
         <Label className="font-body text-xs font-semibold">Productos</Label>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -163,7 +238,6 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
         </div>
       </div>
 
-      {/* Cart */}
       {cart.length > 0 && (
         <div className="rounded-lg border bg-secondary/20 p-3 space-y-2">
           <div className="flex items-center gap-1.5 text-xs font-body font-semibold text-muted-foreground">
@@ -199,9 +273,8 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
         </div>
       )}
 
-      <Button onClick={handleSubmit} disabled={saving} className="w-full gap-2 font-body">
-        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
-        {saving ? "Guardando..." : "Crear pedido"}
+      <Button onClick={handleReview} className="w-full gap-2 font-body">
+        <ShoppingCart className="w-4 h-4" /> Revisar pedido
       </Button>
     </div>
   );

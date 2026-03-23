@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useRealtimeOrders } from "@/hooks/useRealtimeOrders";
+import { logError } from "@/lib/orderHistory";
 
 type OrderStatus = "pendiente" | "en_produccion" | "listo" | "en_delivery" | "entregado";
 
@@ -49,6 +50,7 @@ const AdminOrders = () => {
       .eq("id", orderId);
     if (error) {
       toast.error("Error al actualizar estado");
+      logError("Status change failed (orders page)", { orderId, newStatus, error });
     } else {
       toast.success(`Estado actualizado a "${statusLabels[newStatus]}"`);
     }
