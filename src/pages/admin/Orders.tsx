@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useRealtimeOrders } from "@/hooks/useRealtimeOrders";
+import { logError } from "@/lib/orderHistory";
 
 type OrderStatus = "pendiente" | "en_produccion" | "listo" | "en_delivery" | "entregado";
 
