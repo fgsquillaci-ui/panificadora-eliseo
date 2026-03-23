@@ -8,6 +8,7 @@ import { CheckCircle, Clock, TrendingUp, Plus, Factory, PackageCheck, Truck, Und
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { logError } from "@/lib/orderHistory";
 
 type OrderStatus = "pendiente" | "en_produccion" | "listo" | "en_delivery" | "entregado";
 
