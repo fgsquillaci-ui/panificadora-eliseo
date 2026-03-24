@@ -305,6 +305,17 @@ const AdminCustomers = () => {
               <Label className="font-body text-sm">Dirección</Label>
               <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Av. Corrientes 1234" />
             </div>
+            <div>
+              <Label className="font-body text-sm">Tipo de precio</Label>
+              <Select value={form.price_type} onValueChange={(v) => setForm({ ...form, price_type: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="minorista">Minorista</SelectItem>
+                  <SelectItem value="intermedio">Intermedio</SelectItem>
+                  <SelectItem value="mayorista">Mayorista</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <button onClick={() => setDialogOpen(false)} className="px-4 py-2 rounded-lg font-body text-sm text-muted-foreground hover:bg-secondary transition-colors">Cancelar</button>
