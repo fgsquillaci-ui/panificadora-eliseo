@@ -50,6 +50,7 @@ export type Database = {
           is_active: boolean
           name: string
           phone: string | null
+          price_type: string
           reseller_id: string | null
         }
         Insert: {
@@ -60,6 +61,7 @@ export type Database = {
           is_active?: boolean
           name: string
           phone?: string | null
+          price_type?: string
           reseller_id?: string | null
         }
         Update: {
@@ -70,6 +72,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           phone?: string | null
+          price_type?: string
           reseller_id?: string | null
         }
         Relationships: []
@@ -268,6 +271,7 @@ export type Database = {
           customer_phone: string | null
           delivery_type: string
           id: string
+          payment_method: string
           pickup_time: string | null
           reseller_name: string | null
           status: Database["public"]["Enums"]["order_status"]
@@ -285,6 +289,7 @@ export type Database = {
           customer_phone?: string | null
           delivery_type?: string
           id?: string
+          payment_method?: string
           pickup_time?: string | null
           reseller_name?: string | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -302,6 +307,7 @@ export type Database = {
           customer_phone?: string | null
           delivery_type?: string
           id?: string
+          payment_method?: string
           pickup_time?: string | null
           reseller_name?: string | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -326,6 +332,7 @@ export type Database = {
           description: string
           emoji: string
           id: string
+          intermediate_price: number | null
           name: string
           retail_price: number | null
           unit: string | null
@@ -337,6 +344,7 @@ export type Database = {
           description?: string
           emoji?: string
           id?: string
+          intermediate_price?: number | null
           name: string
           retail_price?: number | null
           unit?: string | null
@@ -348,6 +356,7 @@ export type Database = {
           description?: string
           emoji?: string
           id?: string
+          intermediate_price?: number | null
           name?: string
           retail_price?: number | null
           unit?: string | null
