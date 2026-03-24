@@ -90,7 +90,7 @@ const CustomerPicker = ({ selectedCustomer, onSelect, createdBy, resellerId }: C
       insertData.reseller_id = resellerId;
     }
 
-    const { data, error } = await supabase.from("customers").insert(insertData).select("id, name, phone, address").single();
+    const { data, error } = await supabase.from("customers").insert(insertData).select("id, name, phone, address, price_type").single();
     if (error || !data) {
       toast.error("Error al crear cliente");
     } else {
