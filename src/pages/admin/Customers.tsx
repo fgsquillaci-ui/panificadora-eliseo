@@ -257,6 +257,9 @@ const AdminCustomers = () => {
                       const pt = priceTypeLabels[c.price_type] || priceTypeLabels.minorista;
                       return <Badge className={`border-0 text-[10px] font-body ${pt.color}`}>{pt.label}</Badge>;
                     })()}
+                  </div>
+                  {c.phone && <p className="font-body text-xs text-muted-foreground">📱 {c.phone}</p>}
+                  {c.address && <p className="font-body text-xs text-muted-foreground">📍 {c.address}</p>}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   {c.is_active && !staffCustomerIds.has(c.id) && (
