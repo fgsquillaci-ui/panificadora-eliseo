@@ -28,7 +28,7 @@ const CustomerPicker = ({ selectedCustomer, onSelect, createdBy, resellerId }: C
   const [results, setResults] = useState<Customer[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: "", phone: "", address: "" });
+  const [form, setForm] = useState({ name: "", phone: "", address: "", price_type: "minorista" as PriceType });
   const [submitting, setSubmitting] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
