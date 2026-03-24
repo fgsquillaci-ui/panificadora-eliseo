@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import type { Product } from "@/data/products";
-import { WHATSAPP_NUMBER, getEffectivePrice, WHOLESALE_MIN_QTY } from "@/data/products";
+import { WHATSAPP_NUMBER } from "@/data/products";
+import { getUnitPrice, WHOLESALE_MIN_QTY } from "@/lib/pricing";
 import type { Profile } from "@/hooks/useAuth";
 
 export interface CartItem {

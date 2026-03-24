@@ -22,6 +22,7 @@ export function useProducts() {
         description: p.description || "",
         price: p.retail_price ?? 0,
         wholesalePrice: p.wholesale_price ?? undefined,
+        intermediatePrice: (p as any).intermediate_price ?? undefined,
         unit: p.unit ?? undefined,
         category: p.category as Product["category"],
         emoji: p.emoji,
