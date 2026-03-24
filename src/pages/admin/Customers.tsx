@@ -135,7 +135,8 @@ const AdminCustomers = () => {
           name: form.name.trim(),
           phone: form.phone.trim() || null,
           address: form.address.trim() || null,
-        })
+          price_type: form.price_type,
+        } as any)
         .eq("id", editingCustomer.id);
       if (error) toast.error("Error al actualizar"); else { toast.success("Cliente actualizado"); setDialogOpen(false); }
     } else {
