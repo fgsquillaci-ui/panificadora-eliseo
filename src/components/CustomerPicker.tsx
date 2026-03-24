@@ -166,6 +166,17 @@ const CustomerPicker = ({ selectedCustomer, onSelect, createdBy, resellerId }: C
             <div><Label className="font-body text-xs">Nombre *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nombre" /></div>
             <div><Label className="font-body text-xs">Teléfono</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="11-2345-6789" /></div>
             <div><Label className="font-body text-xs">Dirección</Label><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Av. Corrientes 1234" /></div>
+            <div>
+              <Label className="font-body text-xs">Tipo de precio</Label>
+              <Select value={form.price_type} onValueChange={(v) => setForm({ ...form, price_type: v as PriceType })}>
+                <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="minorista">Minorista</SelectItem>
+                  <SelectItem value="intermedio">Intermedio</SelectItem>
+                  <SelectItem value="mayorista">Mayorista</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <button onClick={() => setShowCreate(false)} className="px-3 py-1.5 rounded-lg font-body text-xs text-muted-foreground hover:bg-secondary transition-colors">Cancelar</button>
