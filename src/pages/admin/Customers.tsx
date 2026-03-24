@@ -107,7 +107,7 @@ const AdminCustomers = () => {
 
   const openEdit = (c: Customer) => {
     setEditingCustomer(c);
-    setForm({ name: c.name, phone: c.phone || "", address: c.address || "" });
+    setForm({ name: c.name, phone: c.phone || "", address: c.address || "", price_type: c.price_type || "minorista" });
     setDialogOpen(true);
   };
 
