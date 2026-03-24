@@ -145,7 +145,8 @@ const AdminCustomers = () => {
         phone: form.phone.trim() || null,
         address: form.address.trim() || null,
         created_by: "admin",
-      });
+        price_type: form.price_type,
+      } as any);
       if (error) toast.error("Error al crear cliente"); else { toast.success("Cliente creado"); setDialogOpen(false); }
     }
     setSubmitting(false);
