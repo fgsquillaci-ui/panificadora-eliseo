@@ -63,7 +63,7 @@ export function useCart() {
       if (items.length === 0) return "";
       const total = getTotalPrice(profile);
       const lines = items.map((i) => {
-        const effectivePrice = getEffectivePrice(i.product, i.quantity);
+        const effectivePrice = getUnitPrice(i.product, i.quantity);
         const isWholesale = i.quantity >= WHOLESALE_MIN_QTY && i.product.wholesalePrice;
         const itemTotal = effectivePrice * i.quantity;
         return `- ${i.product.name} x${i.quantity} ($${itemTotal.toLocaleString("es-AR")})${isWholesale ? " [mayorista]" : ""}`;
