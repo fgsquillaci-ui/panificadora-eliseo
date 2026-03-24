@@ -47,7 +47,7 @@ const CustomerPicker = ({ selectedCustomer, onSelect, createdBy, resellerId }: C
       if (search.trim().length < 1) { setResults([]); return; }
       let query = supabase
         .from("customers")
-        .select("id, name, phone, address")
+        .select("id, name, phone, address, price_type")
         .eq("is_active", true)
         .or(`name.ilike.%${search}%,phone.ilike.%${search}%`)
         .limit(10);
