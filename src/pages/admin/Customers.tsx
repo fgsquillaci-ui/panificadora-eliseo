@@ -29,7 +29,7 @@ const priceTypeLabels: Record<string, { label: string; color: string }> = {
   mayorista: { label: "Mayorista", color: "bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300" },
 };
 
-const emptyForm = { name: "", phone: "", address: "" };
+const emptyForm = { name: "", phone: "", address: "", price_type: "minorista" };
 const emptyStaffForm = { email: "", password: "", role: "revendedor" as AppRole };
 
 const allRoles: { value: AppRole; label: string }[] = [
