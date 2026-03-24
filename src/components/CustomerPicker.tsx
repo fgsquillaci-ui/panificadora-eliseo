@@ -84,6 +84,7 @@ const CustomerPicker = ({ selectedCustomer, onSelect, createdBy, resellerId }: C
       phone: form.phone.trim() || null,
       address: form.address.trim() || null,
       created_by: createdBy,
+      price_type: form.price_type,
     };
     if (createdBy === "revendedor" && resellerId) {
       insertData.reseller_id = resellerId;
