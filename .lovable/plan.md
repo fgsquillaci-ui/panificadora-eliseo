@@ -1,88 +1,101 @@
 
 
-## Hardening del Sistema — Plan de Implementacion
+## Pricing unificado + Pagos + Correcciones financieras
 
 ### Diagnostico
 
-El sistema actual es funcional pero tiene gaps para uso real:
-- No hay validacion server-side del total del pedido
-- No hay historial de cambios en pedidos
-- No hay log de errores
-- No hay confirmacion antes de crear pedido
-- El delivery ya muestra items correctamente via `OrderDetail` (no hay bug ahi)
+| Problema | Detalle |
+|----------|---------|
+| Pricing inconsistente | Web publica usa `getEffectivePrice` (mayorista por cantidad). `CreateOrderForm` usa `product.price` siempre (solo minorista). |
+| Sin tipo de precio en clientes | No existe `price_type` en `customers`. Un cliente mayorista paga minorista en admin. |
+| Sin metodo de pago | No existe `payment_method` en `orders`. |
+| Finanzas | Ya usa `orders.total` de entregados correctamente. No hay bug real ahi. |
 
 ### 1. Migracion de base de datos
 
-Crear 2 tablas nuevas + 1 trigger de validacion:
+```sql
+-- Agregar price_type a customers
+ALTER TABLE customers ADD COLUMN price_type text NOT NULL DEFAULT 'minorista';
 
-```text
-order_history
-├── id (uuid PK)
-├── order_id (uuid FK → orders)
-├── action (text) — "created", "status_change", "edited"
-├── old_value (text, nullable)
-├── new_value (text, nullable)
-├── user_id (uuid)
-├── created_at (timestamptz)
-
-error_logs
-├── id (uuid PK)
-├── message (text)
-├── context (jsonb)
-├── created_at (timestamptz)
+-- Agregar payment_method a orders
+ALTER TABLE orders ADD COLUMN payment_method text NOT NULL DEFAULT 'efectivo';
 ```
 
-RLS: Admin-only para ambas. Realtime en `order_history`.
+### 2. Funcion unica de pricing: `getUnitPrice`
 
-Trigger en `orders`: al hacer UPDATE de status, insertar automaticamente en `order_history` con old/new status y `auth.uid()`.
+Crear `src/lib/pricing.ts` con una funcion reutilizable:
 
-### 2. Validacion de total en CreateOrderForm
+```text
+getUnitPrice(product, quantity, customerPriceType)
+  SI customerPriceType === "mayorista" → product.wholesalePrice || product.price
+  SI customerPriceType === "intermedio" → product.intermediatePrice || product.price  
+  SI customerPriceType === "minorista":
+    SI quantity >= 10 && product.wholesalePrice → product.wholesalePrice
+    SINO → product.price
+```
 
-Antes de guardar el pedido, recalcular total desde los items del carrito y comparar. Si no coincide, bloquear. Agregar validaciones:
-- No permitir items con quantity <= 0
-- No permitir total = 0
-- No permitir pedido sin cliente
-- No permitir pedido sin items
+Esta funcion reemplaza a `getEffectivePrice` en TODOS los contextos.
 
-Ya existen las primeras 2 validaciones (cliente + items vacios). Agregar validacion de total y quantity.
+### 3. Agregar `intermediate_price` a productos (DB + types)
 
-### 3. Paso de confirmacion antes de crear pedido
+La tabla `products` ya tiene `retail_price` y `wholesale_price`. Agregar:
 
-En `CreateOrderForm.tsx`, agregar un estado `showConfirmation` que muestra un resumen (cliente, items, total, tipo de entrega) antes de ejecutar el insert. El usuario confirma o vuelve a editar.
+```sql
+ALTER TABLE products ADD COLUMN intermediate_price integer;
+```
 
-### 4. Registro de historial en cambios de estado
+### 4. Actualizar `useProducts` y tipo `Product`
 
-En `AdminDashboard.tsx` y `AdminOrders.tsx`, despues de cada `update` exitoso de status, insertar un registro en `order_history`. Mismo tratamiento en `DeliveryDashboard.tsx` al marcar entregado.
+- Agregar `intermediatePrice` al tipo `Product`
+- Mapear `intermediate_price` de la DB
 
-Crear helper `logOrderAction(orderId, action, oldValue, newValue)` reutilizable.
+### 5. Actualizar `CustomerPicker`
 
-### 5. Log de errores centralizado
+- Retornar `price_type` del cliente seleccionado
+- Actualizar interfaz `SelectedCustomer` para incluir `price_type`
 
-Crear utility `logError(message, context)` que inserta en `error_logs`. Usar en los catch de:
-- Creacion de pedidos
-- Cambio de estado
-- Creacion de clientes
+### 6. Actualizar `CreateOrderForm`
 
-### 6. Registro automatico de historial al crear pedido
+- Usar `getUnitPrice` al agregar productos al carrito (recalcular precio segun cliente)
+- Cuando se selecciona cliente, recalcular precios del carrito existente
+- Agregar selector obligatorio de metodo de pago (efectivo/transferencia/tarjeta)
+- Bloquear envio sin metodo de pago
+- Guardar `payment_method` en el insert de `orders`
+- Mostrar metodo de pago en pantalla de confirmacion
 
-Despues de crear pedido exitosamente en `CreateOrderForm`, insertar `order_history` con action = "created".
+### 7. Actualizar web publica (`useCart` + `ProductCatalog`)
+
+- Reemplazar `getEffectivePrice` por `getUnitPrice` con `price_type = "minorista"` (default para web)
+- Misma logica: >= 10 unidades = mayorista
+
+### 8. Actualizar `CustomerPicker` dialog de creacion
+
+- Agregar selector de `price_type` (minorista/intermedio/mayorista) al crear cliente nuevo
+- Guardar en DB
+
+### 9. Actualizar admin `Customers.tsx`
+
+- Mostrar `price_type` en lista de clientes
+- Permitir editarlo
 
 ### Archivos a crear/modificar
 
 | Archivo | Accion |
 |---------|--------|
-| Migracion SQL | 2 tablas + trigger |
-| `src/lib/orderHistory.ts` | Nuevo — helper logOrderAction + logError |
-| `src/components/CreateOrderForm.tsx` | Confirmacion + validacion total + log |
-| `src/pages/admin/Dashboard.tsx` | Usar logOrderAction en cambios de estado |
-| `src/pages/admin/Orders.tsx` | Usar logOrderAction en cambios de estado |
-| `src/pages/delivery/Dashboard.tsx` | Usar logOrderAction al marcar entregado |
+| Migracion SQL | `price_type` en customers, `payment_method` en orders, `intermediate_price` en products |
+| `src/lib/pricing.ts` | Nuevo — funcion `getUnitPrice` |
+| `src/data/products.ts` | Actualizar tipo `Product` con `intermediatePrice`, reemplazar `getEffectivePrice` |
+| `src/hooks/useProducts.ts` | Mapear `intermediate_price` |
+| `src/components/CustomerPicker.tsx` | Retornar `price_type`, permitir seleccionarlo al crear |
+| `src/components/CreateOrderForm.tsx` | Usar `getUnitPrice`, agregar `payment_method` obligatorio |
+| `src/hooks/useCart.ts` | Usar `getUnitPrice` en lugar de `getEffectivePrice` |
+| `src/pages/admin/Customers.tsx` | Mostrar y editar `price_type` |
 
 ### Lo que NO se modifica
 
-- Estructura de orders, order_items, customers
-- Dashboards de revendedor, clientes, personal, finanzas
+- OwnerDashboard (finanzas ya usa orders.total correctamente)
+- Estructura de order_items
+- Delivery dashboard
 - Edge functions
-- Logica de CustomerPicker (ya funciona bien)
-- OrderDetail (ya muestra items correctamente)
+- RLS policies existentes
 
