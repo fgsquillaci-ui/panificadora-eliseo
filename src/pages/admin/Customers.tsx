@@ -20,7 +20,14 @@ interface Customer {
   reseller_id: string | null;
   is_active: boolean;
   created_at: string;
+  price_type: string;
 }
+
+const priceTypeLabels: Record<string, { label: string; color: string }> = {
+  minorista: { label: "Minorista", color: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" },
+  intermedio: { label: "Intermedio", color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" },
+  mayorista: { label: "Mayorista", color: "bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300" },
+};
 
 const emptyForm = { name: "", phone: "", address: "" };
 const emptyStaffForm = { email: "", password: "", role: "revendedor" as AppRole };
