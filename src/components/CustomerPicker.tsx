@@ -2,15 +2,18 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Search, Plus, User } from "lucide-react";
 import { toast } from "sonner";
+import type { PriceType } from "@/lib/pricing";
 
 interface Customer {
   id: string;
   name: string;
   phone: string | null;
   address: string | null;
+  price_type: PriceType;
 }
 
 interface CustomerPickerProps {
