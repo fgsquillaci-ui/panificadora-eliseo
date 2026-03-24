@@ -253,9 +253,10 @@ const AdminCustomers = () => {
                     {staffCustomerIds.has(c.id) && (
                       <Badge className="border-0 text-[10px] font-body bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300">Personal</Badge>
                     )}
-                  </div>
-                  {c.phone && <p className="font-body text-xs text-muted-foreground">📱 {c.phone}</p>}
-                  {c.address && <p className="font-body text-xs text-muted-foreground">📍 {c.address}</p>}
+                    {(() => {
+                      const pt = priceTypeLabels[c.price_type] || priceTypeLabels.minorista;
+                      return <Badge className={`border-0 text-[10px] font-body ${pt.color}`}>{pt.label}</Badge>;
+                    })()}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   {c.is_active && !staffCustomerIds.has(c.id) && (
