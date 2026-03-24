@@ -44,7 +44,7 @@ export function useCart() {
 
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
   const subtotal = items.reduce(
-    (sum, i) => sum + getEffectivePrice(i.product, i.quantity) * i.quantity,
+    (sum, i) => sum + getUnitPrice(i.product, i.quantity) * i.quantity,
     0
   );
 
