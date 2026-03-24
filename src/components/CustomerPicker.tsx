@@ -2,15 +2,18 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Search, Plus, User } from "lucide-react";
 import { toast } from "sonner";
+import type { PriceType } from "@/lib/pricing";
 
 interface Customer {
   id: string;
   name: string;
   phone: string | null;
   address: string | null;
+  price_type: PriceType;
 }
 
 interface CustomerPickerProps {
@@ -25,7 +28,7 @@ const CustomerPicker = ({ selectedCustomer, onSelect, createdBy, resellerId }: C
   const [results, setResults] = useState<Customer[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: "", phone: "", address: "" });
+  const [form, setForm] = useState({ name: "", phone: "", address: "", price_type: "minorista" as PriceType });
   const [submitting, setSubmitting] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -44,7 +47,7 @@ const CustomerPicker = ({ selectedCustomer, onSelect, createdBy, resellerId }: C
       if (search.trim().length < 1) { setResults([]); return; }
       let query = supabase
         .from("customers")
-        .select("id, name, phone, address")
+        .select("id, name, phone, address, price_type")
         .eq("is_active", true)
         .or(`name.ilike.%${search}%,phone.ilike.%${search}%`)
         .limit(10);
@@ -81,12 +84,13 @@ const CustomerPicker = ({ selectedCustomer, onSelect, createdBy, resellerId }: C
       phone: form.phone.trim() || null,
       address: form.address.trim() || null,
       created_by: createdBy,
+      price_type: form.price_type,
     };
     if (createdBy === "revendedor" && resellerId) {
       insertData.reseller_id = resellerId;
     }
 
-    const { data, error } = await supabase.from("customers").insert(insertData).select("id, name, phone, address").single();
+    const { data, error } = await supabase.from("customers").insert(insertData).select("id, name, phone, address, price_type").single();
     if (error || !data) {
       toast.error("Error al crear cliente");
     } else {
@@ -144,7 +148,7 @@ const CustomerPicker = ({ selectedCustomer, onSelect, createdBy, resellerId }: C
                 <p className="font-body text-xs text-muted-foreground px-3 py-2">Sin resultados</p>
               )}
               <button
-                onClick={() => { setShowDropdown(false); setForm({ name: search, phone: "", address: "" }); setShowCreate(true); }}
+                onClick={() => { setShowDropdown(false); setForm({ name: search, phone: "", address: "", price_type: "minorista" }); setShowCreate(true); }}
                 className="w-full text-left px-3 py-2 hover:bg-secondary transition-colors border-t flex items-center gap-1.5 text-primary"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -162,6 +166,17 @@ const CustomerPicker = ({ selectedCustomer, onSelect, createdBy, resellerId }: C
             <div><Label className="font-body text-xs">Nombre *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nombre" /></div>
             <div><Label className="font-body text-xs">Teléfono</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="11-2345-6789" /></div>
             <div><Label className="font-body text-xs">Dirección</Label><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Av. Corrientes 1234" /></div>
+            <div>
+              <Label className="font-body text-xs">Tipo de precio</Label>
+              <Select value={form.price_type} onValueChange={(v) => setForm({ ...form, price_type: v as PriceType })}>
+                <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="minorista">Minorista</SelectItem>
+                  <SelectItem value="intermedio">Intermedio</SelectItem>
+                  <SelectItem value="mayorista">Mayorista</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <button onClick={() => setShowCreate(false)} className="px-3 py-1.5 rounded-lg font-body text-xs text-muted-foreground hover:bg-secondary transition-colors">Cancelar</button>

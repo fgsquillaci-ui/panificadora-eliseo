@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import type { Product } from "@/data/products";
-import { WHATSAPP_NUMBER, getEffectivePrice, WHOLESALE_MIN_QTY } from "@/data/products";
+import { WHATSAPP_NUMBER } from "@/data/products";
+import { getUnitPrice, WHOLESALE_MIN_QTY } from "@/lib/pricing";
 import type { Profile } from "@/hooks/useAuth";
 
 export interface CartItem {
@@ -43,7 +44,7 @@ export function useCart() {
 
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
   const subtotal = items.reduce(
-    (sum, i) => sum + getEffectivePrice(i.product, i.quantity) * i.quantity,
+    (sum, i) => sum + getUnitPrice(i.product, i.quantity) * i.quantity,
     0
   );
 
@@ -62,7 +63,7 @@ export function useCart() {
       if (items.length === 0) return "";
       const total = getTotalPrice(profile);
       const lines = items.map((i) => {
-        const effectivePrice = getEffectivePrice(i.product, i.quantity);
+        const effectivePrice = getUnitPrice(i.product, i.quantity);
         const isWholesale = i.quantity >= WHOLESALE_MIN_QTY && i.product.wholesalePrice;
         const itemTotal = effectivePrice * i.quantity;
         return `- ${i.product.name} x${i.quantity} ($${itemTotal.toLocaleString("es-AR")})${isWholesale ? " [mayorista]" : ""}`;

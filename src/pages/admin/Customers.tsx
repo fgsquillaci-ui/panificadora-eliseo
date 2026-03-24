@@ -20,9 +20,16 @@ interface Customer {
   reseller_id: string | null;
   is_active: boolean;
   created_at: string;
+  price_type: string;
 }
 
-const emptyForm = { name: "", phone: "", address: "" };
+const priceTypeLabels: Record<string, { label: string; color: string }> = {
+  minorista: { label: "Minorista", color: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" },
+  intermedio: { label: "Intermedio", color: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300" },
+  mayorista: { label: "Mayorista", color: "bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300" },
+};
+
+const emptyForm = { name: "", phone: "", address: "", price_type: "minorista" };
 const emptyStaffForm = { email: "", password: "", role: "revendedor" as AppRole };
 
 const allRoles: { value: AppRole; label: string }[] = [
@@ -100,7 +107,7 @@ const AdminCustomers = () => {
 
   const openEdit = (c: Customer) => {
     setEditingCustomer(c);
-    setForm({ name: c.name, phone: c.phone || "", address: c.address || "" });
+    setForm({ name: c.name, phone: c.phone || "", address: c.address || "", price_type: c.price_type || "minorista" });
     setDialogOpen(true);
   };
 
@@ -128,7 +135,8 @@ const AdminCustomers = () => {
           name: form.name.trim(),
           phone: form.phone.trim() || null,
           address: form.address.trim() || null,
-        })
+          price_type: form.price_type,
+        } as any)
         .eq("id", editingCustomer.id);
       if (error) toast.error("Error al actualizar"); else { toast.success("Cliente actualizado"); setDialogOpen(false); }
     } else {
@@ -137,7 +145,8 @@ const AdminCustomers = () => {
         phone: form.phone.trim() || null,
         address: form.address.trim() || null,
         created_by: "admin",
-      });
+        price_type: form.price_type,
+      } as any);
       if (error) toast.error("Error al crear cliente"); else { toast.success("Cliente creado"); setDialogOpen(false); }
     }
     setSubmitting(false);
@@ -244,6 +253,10 @@ const AdminCustomers = () => {
                     {staffCustomerIds.has(c.id) && (
                       <Badge className="border-0 text-[10px] font-body bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300">Personal</Badge>
                     )}
+                    {(() => {
+                      const pt = priceTypeLabels[c.price_type] || priceTypeLabels.minorista;
+                      return <Badge className={`border-0 text-[10px] font-body ${pt.color}`}>{pt.label}</Badge>;
+                    })()}
                   </div>
                   {c.phone && <p className="font-body text-xs text-muted-foreground">📱 {c.phone}</p>}
                   {c.address && <p className="font-body text-xs text-muted-foreground">📍 {c.address}</p>}
@@ -291,6 +304,17 @@ const AdminCustomers = () => {
             <div>
               <Label className="font-body text-sm">Dirección</Label>
               <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Av. Corrientes 1234" />
+            </div>
+            <div>
+              <Label className="font-body text-sm">Tipo de precio</Label>
+              <Select value={form.price_type} onValueChange={(v) => setForm({ ...form, price_type: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="minorista">Minorista</SelectItem>
+                  <SelectItem value="intermedio">Intermedio</SelectItem>
+                  <SelectItem value="mayorista">Mayorista</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

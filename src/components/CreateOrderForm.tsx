@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProducts } from "@/hooks/useProducts";
@@ -6,9 +6,11 @@ import CustomerPicker from "@/components/CustomerPicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, Minus, ShoppingCart, Loader2, ArrowLeft, CheckCircle } from "lucide-react";
 import { logOrderAction, logError } from "@/lib/orderHistory";
+import { getUnitPrice, type PriceType } from "@/lib/pricing";
 
 interface CartItem {
   productId: string;
@@ -22,6 +24,7 @@ interface SelectedCustomer {
   name: string;
   phone: string | null;
   address: string | null;
+  price_type: PriceType;
 }
 
 interface CreateOrderFormProps {
@@ -30,56 +33,83 @@ interface CreateOrderFormProps {
   onSuccess: () => void;
 }
 
+const PAYMENT_METHODS = [
+  { value: "efectivo", label: "💵 Efectivo" },
+  { value: "transferencia", label: "🏦 Transferencia" },
+  { value: "tarjeta", label: "💳 Tarjeta" },
+];
+
 const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderFormProps) => {
   const { user } = useAuth();
   const { data: products, isLoading: productsLoading } = useProducts();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
   const [address, setAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
   const [saving, setSaving] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+
+  const customerPriceType = selectedCustomer?.price_type ?? "minorista";
+
+  // Recalculate cart prices when customer changes
+  const recalcCartForCustomer = useCallback(
+    (priceType: PriceType, currentCart: CartItem[]) => {
+      if (!products) return currentCart;
+      return currentCart.map((item) => {
+        const product = products.find((p) => p.id === item.productId);
+        if (!product) return item;
+        return { ...item, price: getUnitPrice(product, item.quantity, priceType) };
+      });
+    },
+    [products]
+  );
 
   const handleCustomerSelect = (customer: SelectedCustomer | null) => {
     setSelectedCustomer(customer);
     if (customer?.address) setAddress(customer.address);
+    // Recalculate prices for new customer type
+    const priceType = customer?.price_type ?? "minorista";
+    setCart((prev) => recalcCartForCustomer(priceType, prev));
   };
 
-  const addToCart = (product: { id: string; name: string; price: number }) => {
+  const addToCart = (product: { id: string; name: string; price: number; wholesalePrice?: number; intermediatePrice?: number; emoji: string }) => {
     setCart((prev) => {
       const existing = prev.find((i) => i.productId === product.id);
       if (existing) {
+        const newQty = existing.quantity + 1;
+        const unitPrice = getUnitPrice(product as any, newQty, customerPriceType);
         return prev.map((i) =>
-          i.productId === product.id ? { ...i, quantity: i.quantity + 1 } : i
+          i.productId === product.id ? { ...i, quantity: newQty, price: unitPrice } : i
         );
       }
-      return [...prev, { productId: product.id, name: product.name, price: product.price, quantity: 1 }];
+      const unitPrice = getUnitPrice(product as any, 1, customerPriceType);
+      return [...prev, { productId: product.id, name: product.name, price: unitPrice, quantity: 1 }];
     });
   };
 
   const updateQty = (productId: string, delta: number) => {
-    setCart((prev) =>
-      prev
-        .map((i) => (i.productId === productId ? { ...i, quantity: i.quantity + delta } : i))
-        .filter((i) => i.quantity > 0)
-    );
+    setCart((prev) => {
+      const product = products?.find((p) => p.id === productId);
+      return prev
+        .map((i) => {
+          if (i.productId !== productId) return i;
+          const newQty = i.quantity + delta;
+          if (newQty <= 0) return { ...i, quantity: 0 };
+          const unitPrice = product ? getUnitPrice(product, newQty, customerPriceType) : i.price;
+          return { ...i, quantity: newQty, price: unitPrice };
+        })
+        .filter((i) => i.quantity > 0);
+    });
   };
 
   const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
 
   const validateOrder = (): boolean => {
-    if (!selectedCustomer) {
-      toast.error("Seleccioná un cliente");
-      return false;
-    }
-    if (cart.length === 0) {
-      toast.error("Agregá al menos un producto");
-      return false;
-    }
+    if (!selectedCustomer) { toast.error("Seleccioná un cliente"); return false; }
+    if (cart.length === 0) { toast.error("Agregá al menos un producto"); return false; }
+    if (!paymentMethod) { toast.error("Seleccioná un método de pago"); return false; }
     const invalidItems = cart.filter((i) => i.quantity <= 0);
-    if (invalidItems.length > 0) {
-      toast.error("Hay productos con cantidad inválida");
-      return false;
-    }
+    if (invalidItems.length > 0) { toast.error("Hay productos con cantidad inválida"); return false; }
     const recalculated = cart.reduce((s, i) => s + i.price * i.quantity, 0);
     if (recalculated !== total || total === 0) {
       toast.error("Error en el cálculo del total. Revisá el carrito.");
@@ -90,14 +120,11 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
   };
 
   const handleReview = () => {
-    if (validateOrder()) {
-      setShowConfirmation(true);
-    }
+    if (validateOrder()) setShowConfirmation(true);
   };
 
   const handleSubmit = async () => {
-    if (!user) return;
-    if (!validateOrder()) return;
+    if (!user || !validateOrder()) return;
 
     setSaving(true);
     const { data: order, error } = await supabase
@@ -113,7 +140,8 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
         user_id: user.id,
         created_by: createdBy,
         reseller_name: resellerName,
-      })
+        payment_method: paymentMethod,
+      } as any)
       .select("id")
       .single();
 
@@ -148,28 +176,25 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
     return <p className="font-body text-sm text-muted-foreground animate-pulse">Cargando productos...</p>;
   }
 
-  // Confirmation step
   if (showConfirmation) {
+    const paymentLabel = PAYMENT_METHODS.find((m) => m.value === paymentMethod)?.label ?? paymentMethod;
     return (
       <div className="space-y-4">
         <h3 className="font-display text-lg font-semibold">Confirmar pedido</h3>
-
         <div className="rounded-lg border bg-secondary/20 p-4 space-y-3">
           <div className="space-y-1">
             <p className="font-body text-xs text-muted-foreground">Cliente</p>
             <p className="font-body text-sm font-semibold">{selectedCustomer?.name}</p>
-            {selectedCustomer?.phone && (
-              <p className="font-body text-xs text-muted-foreground">{selectedCustomer.phone}</p>
-            )}
+            {selectedCustomer?.phone && <p className="font-body text-xs text-muted-foreground">{selectedCustomer.phone}</p>}
           </div>
-
           <div className="space-y-1">
             <p className="font-body text-xs text-muted-foreground">Entrega</p>
-            <p className="font-body text-sm">
-              {address.trim() ? `📍 ${address}` : "🏪 Retiro en local"}
-            </p>
+            <p className="font-body text-sm">{address.trim() ? `📍 ${address}` : "🏪 Retiro en local"}</p>
           </div>
-
+          <div className="space-y-1">
+            <p className="font-body text-xs text-muted-foreground">Método de pago</p>
+            <p className="font-body text-sm">{paymentLabel}</p>
+          </div>
           <div className="border-t pt-2 space-y-1.5">
             <p className="font-body text-xs text-muted-foreground">Productos</p>
             {cart.map((item) => (
@@ -179,13 +204,11 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
               </div>
             ))}
           </div>
-
           <div className="border-t pt-2 flex justify-between">
             <span className="font-body text-sm font-bold">Total</span>
             <span className="font-body text-sm font-bold">${total.toLocaleString("es-AR")}</span>
           </div>
         </div>
-
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowConfirmation(false)} className="flex-1 gap-1.5 font-body">
             <ArrowLeft className="w-4 h-4" /> Editar
@@ -213,11 +236,31 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
         <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Av. Corrientes 1234" />
       </div>
 
+      <div className="space-y-1.5">
+        <Label className="font-body text-xs font-semibold">Método de pago *</Label>
+        <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+          <SelectTrigger className="text-sm">
+            <SelectValue placeholder="Seleccionar método de pago" />
+          </SelectTrigger>
+          <SelectContent>
+            {PAYMENT_METHODS.map((m) => (
+              <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="space-y-2">
         <Label className="font-body text-xs font-semibold">Productos</Label>
+        {selectedCustomer && customerPriceType !== "minorista" && (
+          <p className="font-body text-[10px] text-primary font-semibold">
+            💰 Precio {customerPriceType} aplicado
+          </p>
+        )}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {(products || []).map((p) => {
             const inCart = cart.find((i) => i.productId === p.id);
+            const displayPrice = getUnitPrice(p, inCart?.quantity ?? 1, customerPriceType);
             return (
               <button
                 key={p.id}
@@ -228,7 +271,7 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
               >
                 <span className="text-lg">{p.emoji}</span>
                 <p className="font-body text-xs font-medium truncate">{p.name}</p>
-                <p className="font-body text-[10px] text-muted-foreground">${p.price.toLocaleString("es-AR")}</p>
+                <p className="font-body text-[10px] text-muted-foreground">${displayPrice.toLocaleString("es-AR")}</p>
                 {inCart && (
                   <p className="font-body text-[10px] text-primary font-semibold">×{inCart.quantity}</p>
                 )}
@@ -247,17 +290,11 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
             <div key={item.productId} className="flex items-center justify-between gap-2">
               <span className="font-body text-xs flex-1 truncate">{item.name}</span>
               <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => updateQty(item.productId, -1)}
-                  className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center hover:bg-destructive/20"
-                >
+                <button onClick={() => updateQty(item.productId, -1)} className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center hover:bg-destructive/20">
                   <Minus className="w-3 h-3" />
                 </button>
                 <span className="font-body text-xs w-5 text-center font-semibold">{item.quantity}</span>
-                <button
-                  onClick={() => updateQty(item.productId, 1)}
-                  className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center hover:bg-primary/20"
-                >
+                <button onClick={() => updateQty(item.productId, 1)} className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center hover:bg-primary/20">
                   <Plus className="w-3 h-3" />
                 </button>
               </div>

@@ -4,6 +4,7 @@ export interface Product {
   description: string;
   price: number;
   wholesalePrice?: number;
+  intermediatePrice?: number;
   unit?: string;
   category: "panes" | "especiales" | "tortilleria";
   emoji: string;
@@ -17,6 +18,7 @@ export const categories = [
   { id: "tortilleria" as const, name: "Tortillería", emoji: "🫓" },
 ];
 
+/** @deprecated Use getUnitPrice from src/lib/pricing.ts instead */
 export function getEffectivePrice(product: Product, quantity: number): number {
   if (quantity >= WHOLESALE_MIN_QTY && product.wholesalePrice) {
     return product.wholesalePrice;
