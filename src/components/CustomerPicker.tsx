@@ -148,7 +148,7 @@ const CustomerPicker = ({ selectedCustomer, onSelect, createdBy, resellerId }: C
                 <p className="font-body text-xs text-muted-foreground px-3 py-2">Sin resultados</p>
               )}
               <button
-                onClick={() => { setShowDropdown(false); setForm({ name: search, phone: "", address: "" }); setShowCreate(true); }}
+                onClick={() => { setShowDropdown(false); setForm({ name: search, phone: "", address: "", price_type: "minorista" }); setShowCreate(true); }}
                 className="w-full text-left px-3 py-2 hover:bg-secondary transition-colors border-t flex items-center gap-1.5 text-primary"
               >
                 <Plus className="w-3.5 h-3.5" />
