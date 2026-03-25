@@ -20,7 +20,8 @@ const OwnerDashboard = () => {
   const [period, setPeriod] = useState<Period>("hoy");
   const { revenue, expenses, expensesList, cashMovements, totalWithdrawals, loading } = useFinancialData(period);
   const { products, estimatedCost, loading: profitLoading } = useProductProfitability(period);
-  const { lowStock } = useIngredients();
+  const { ingredients, lowStock, update: updateIngredient } = useIngredients();
+  const { purchases: allPurchases } = usePurchases();
 
   const profit = revenue - estimatedCost - expenses;
   const margin = revenue > 0 ? ((revenue - estimatedCost) / revenue) * 100 : 0;
