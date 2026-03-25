@@ -249,5 +249,78 @@ const AlertCard = ({ type, text }: { type: "destructive" | "warning"; text: stri
     {text}
   </div>
 );
+// Cost Analysis Section
+import type { Ingredient } from "@/hooks/useIngredients";
+import type { Purchase } from "@/hooks/usePurchases";
+
+const CostAnalysisSection = ({ ingredients, purchases, onUpdateCost }: {
+  ingredients: Ingredient[];
+  purchases: Purchase[];
+  onUpdateCost: (id: string, values: Partial<Ingredient>) => Promise<boolean>;
+}) => {
+  // Calculate weighted avg cost per ingredient from purchases
+  const avgCosts: Record<string, number> = {};
+  const grouped: Record<string, { totalCost: number; totalQty: number }> = {};
+  purchases.forEach(p => {
+    if (!grouped[p.ingredient_id]) grouped[p.ingredient_id] = { totalCost: 0, totalQty: 0 };
+    grouped[p.ingredient_id].totalCost += p.total_cost;
+    grouped[p.ingredient_id].totalQty += p.quantity;
+  });
+  Object.entries(grouped).forEach(([id, { totalCost, totalQty }]) => {
+    if (totalQty > 0) avgCosts[id] = Math.round(totalCost / totalQty);
+  });
+
+  const rows = ingredients
+    .filter(i => avgCosts[i.id] !== undefined)
+    .map(i => {
+      const suggested = avgCosts[i.id];
+      const diff = i.costo_unitario > 0 ? ((suggested - i.costo_unitario) / i.costo_unitario * 100) : 0;
+      return { ...i, suggested, diff };
+    })
+    .filter(r => Math.abs(r.diff) > 5)
+    .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+
+  if (rows.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base font-heading flex items-center gap-2"><RefreshCw className="w-4 h-4" /> Análisis de costos — Materia Prima</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className="border-b text-left text-muted-foreground">
+              <th className="py-2 font-medium">Materia prima</th>
+              <th className="py-2 font-medium text-right">Costo actual</th>
+              <th className="py-2 font-medium text-right">Costo sugerido</th>
+              <th className="py-2 font-medium text-right">Diferencia</th>
+              <th className="py-2 font-medium text-right">Acción</th>
+            </tr></thead>
+            <tbody>
+              {rows.map(r => (
+                <tr key={r.id} className="border-b last:border-0">
+                  <td className="py-2 font-body">{r.name}</td>
+                  <td className="py-2 text-right">{fmt(r.costo_unitario)}/{r.unit}</td>
+                  <td className="py-2 text-right">{fmt(r.suggested)}/{r.unit}</td>
+                  <td className="py-2 text-right">
+                    <Badge variant={Math.abs(r.diff) > 15 ? "destructive" : "secondary"}>
+                      {r.diff > 0 ? "+" : ""}{r.diff.toFixed(1)}%
+                    </Badge>
+                  </td>
+                  <td className="py-2 text-right">
+                    <Button size="sm" variant="outline" onClick={async () => {
+                      await onUpdateCost(r.id, { costo_unitario: r.suggested });
+                    }}>Actualizar</Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
 export default OwnerDashboard;
