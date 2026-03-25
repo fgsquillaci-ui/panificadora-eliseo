@@ -1,101 +1,135 @@
 
 
-## Pricing unificado + Pagos + Correcciones financieras
+## Sistema Profesional Completo — Plan de Implementacion
 
-### Diagnostico
+### Diagnostico de lo que falta
 
-| Problema | Detalle |
-|----------|---------|
-| Pricing inconsistente | Web publica usa `getEffectivePrice` (mayorista por cantidad). `CreateOrderForm` usa `product.price` siempre (solo minorista). |
-| Sin tipo de precio en clientes | No existe `price_type` en `customers`. Un cliente mayorista paga minorista en admin. |
-| Sin metodo de pago | No existe `payment_method` en `orders`. |
-| Finanzas | Ya usa `orders.total` de entregados correctamente. No hay bug real ahi. |
+| Problema | Estado actual |
+|----------|--------------|
+| Registro crea profile pero NO customer | El trigger `handle_new_user` solo crea profile. Usuario registrado no aparece en clientes. |
+| Personal solo tiene activar/desactivar | No hay estados Pausado/Baja. No se puede "dar de baja" (eliminar rol y mantener como cliente). |
+| Ingredientes sin historial de compras | No hay tabla de compras ni costo ponderado. Solo costo fijo manual. |
+| Nombre "Ingredientes" | Debe ser "Materia Prima" |
+
+Lo que YA funciona y NO se toca: pricing unificado, metodo de pago, finanzas desde orders.total, recetas, order_history, error_logs, CustomerPicker, delivery.
+
+---
 
 ### 1. Migracion de base de datos
 
-```sql
--- Agregar price_type a customers
-ALTER TABLE customers ADD COLUMN price_type text NOT NULL DEFAULT 'minorista';
+**a) Trigger: registro publico crea customer automaticamente**
 
--- Agregar payment_method a orders
-ALTER TABLE orders ADD COLUMN payment_method text NOT NULL DEFAULT 'efectivo';
+Modificar `handle_new_user` para que ademas de crear profile, cree un registro en `customers` con el mismo nombre/telefono y vincule `profiles.customer_id`.
+
+**b) Agregar campo `staff_status` a profiles**
+
+```sql
+ALTER TABLE profiles ADD COLUMN staff_status text NOT NULL DEFAULT 'activo';
+-- valores: 'activo', 'pausado', 'baja'
 ```
 
-### 2. Funcion unica de pricing: `getUnitPrice`
-
-Crear `src/lib/pricing.ts` con una funcion reutilizable:
+**c) Tabla `purchases` (compras de materia prima)**
 
 ```text
-getUnitPrice(product, quantity, customerPriceType)
-  SI customerPriceType === "mayorista" → product.wholesalePrice || product.price
-  SI customerPriceType === "intermedio" → product.intermediatePrice || product.price  
-  SI customerPriceType === "minorista":
-    SI quantity >= 10 && product.wholesalePrice → product.wholesalePrice
-    SINO → product.price
+purchases
+├── id (uuid PK)
+├── ingredient_id (uuid FK → ingredients)
+├── quantity (numeric)
+├── unit_price (integer, centavos)
+├── total_cost (integer, centavos)
+├── date (date)
+├── created_at (timestamptz)
 ```
 
-Esta funcion reemplaza a `getEffectivePrice` en TODOS los contextos.
+RLS: admin only. Realtime habilitado.
 
-### 3. Agregar `intermediate_price` a productos (DB + types)
+**d) Agregar action `remove-role` a manage-users edge function**
 
-La tabla `products` ya tiene `retail_price` y `wholesale_price`. Agregar:
+Para dar de baja personal: eliminar de user_roles, marcar `staff_status = 'baja'`.
 
-```sql
-ALTER TABLE products ADD COLUMN intermediate_price integer;
-```
+---
 
-### 4. Actualizar `useProducts` y tipo `Product`
+### 2. Registro publico → crear customer
 
-- Agregar `intermediatePrice` al tipo `Product`
-- Mapear `intermediate_price` de la DB
+Actualizar trigger `handle_new_user` para:
+1. Insertar en `customers` (name, phone, created_by='registro')
+2. Actualizar `profiles.customer_id` con el id del customer creado
 
-### 5. Actualizar `CustomerPicker`
+Resultado: todo usuario registrado aparece como cliente automaticamente.
 
-- Retornar `price_type` del cliente seleccionado
-- Actualizar interfaz `SelectedCustomer` para incluir `price_type`
+---
 
-### 6. Actualizar `CreateOrderForm`
+### 3. Gestion de Personal — Estados profesionales
 
-- Usar `getUnitPrice` al agregar productos al carrito (recalcular precio segun cliente)
-- Cuando se selecciona cliente, recalcular precios del carrito existente
-- Agregar selector obligatorio de metodo de pago (efectivo/transferencia/tarjeta)
-- Bloquear envio sin metodo de pago
-- Guardar `payment_method` en el insert de `orders`
-- Mostrar metodo de pago en pantalla de confirmacion
+**Reemplazar sistema actual en `Users.tsx`:**
 
-### 7. Actualizar web publica (`useCart` + `ProductCatalog`)
+- Mostrar estado: Activo (verde), Pausado (amarillo), Baja (rojo)
+- Acciones por estado:
+  - Activo → Pausar / Dar de baja
+  - Pausado → Reactivar / Dar de baja
+  - Baja → no aparece en lista (vuelve a ser solo cliente)
+- "Dar de baja" = eliminar rol de `user_roles` + `staff_status = 'baja'`
+- Personal dado de baja sigue visible en Clientes
 
-- Reemplazar `getEffectivePrice` por `getUnitPrice` con `price_type = "minorista"` (default para web)
-- Misma logica: >= 10 unidades = mayorista
+**Actualizar edge function `manage-users`:**
+- Nueva action `pause-user`: `staff_status = 'pausado'`
+- Nueva action `remove-staff`: eliminar de `user_roles`, `staff_status = 'baja'`
+- Action `update-user` con `staff_status = 'activo'` para reactivar
 
-### 8. Actualizar `CustomerPicker` dialog de creacion
+---
 
-- Agregar selector de `price_type` (minorista/intermedio/mayorista) al crear cliente nuevo
-- Guardar en DB
+### 4. Renombrar Ingredientes → Materia Prima
 
-### 9. Actualizar admin `Customers.tsx`
+- `DashboardLayout.tsx`: label "Ingredientes" → "Materia Prima"
+- `Ingredients.tsx`: titulo "Ingredientes" → "Materia Prima", textos internos
+- `useIngredients.ts`: sin cambios (tabla sigue siendo `ingredients`)
 
-- Mostrar `price_type` en lista de clientes
-- Permitir editarlo
+---
+
+### 5. Compras de Materia Prima + Costo Ponderado
+
+**Nuevo hook `usePurchases.ts`:**
+- CRUD de compras vinculadas a ingredient_id
+- Al registrar compra: actualizar `ingredients.stock_actual` (sumar quantity)
+- Calcular costo promedio ponderado: `total_invertido / cantidad_total`
+
+**Actualizar pagina `Ingredients.tsx`:**
+- Agregar seccion "Compras" por ingrediente (historial)
+- Boton "Registrar compra" (cantidad, precio unitario, fecha)
+- Mostrar costo promedio vs costo actual
+- Al registrar compra, stock se actualiza automaticamente
+
+---
+
+### 6. Panel de Analisis de Costos en OwnerDashboard
+
+Agregar seccion en `OwnerDashboard.tsx`:
+- Por producto: costo actual (receta) vs costo sugerido (promedio ponderado de compras)
+- Diferencia %
+- Alerta si diferencia > 15%
+- Boton "Actualizar costo" que modifica `ingredients.costo_unitario` al promedio
+
+---
 
 ### Archivos a crear/modificar
 
 | Archivo | Accion |
 |---------|--------|
-| Migracion SQL | `price_type` en customers, `payment_method` en orders, `intermediate_price` en products |
-| `src/lib/pricing.ts` | Nuevo — funcion `getUnitPrice` |
-| `src/data/products.ts` | Actualizar tipo `Product` con `intermediatePrice`, reemplazar `getEffectivePrice` |
-| `src/hooks/useProducts.ts` | Mapear `intermediate_price` |
-| `src/components/CustomerPicker.tsx` | Retornar `price_type`, permitir seleccionarlo al crear |
-| `src/components/CreateOrderForm.tsx` | Usar `getUnitPrice`, agregar `payment_method` obligatorio |
-| `src/hooks/useCart.ts` | Usar `getUnitPrice` en lugar de `getEffectivePrice` |
-| `src/pages/admin/Customers.tsx` | Mostrar y editar `price_type` |
+| Migracion SQL | `staff_status` en profiles, tabla `purchases`, trigger `handle_new_user` actualizado |
+| `supabase/functions/manage-users/index.ts` | Actions: `pause-user`, `remove-staff` |
+| `src/components/DashboardLayout.tsx` | "Ingredientes" → "Materia Prima" |
+| `src/pages/admin/Ingredients.tsx` | Renombrar + agregar seccion compras |
+| `src/pages/admin/Users.tsx` | Estados Activo/Pausado/Baja, dar de baja |
+| `src/hooks/usePurchases.ts` | Nuevo — CRUD compras + costo ponderado |
+| `src/pages/admin/OwnerDashboard.tsx` | Seccion analisis de costos sugeridos |
 
 ### Lo que NO se modifica
 
-- OwnerDashboard (finanzas ya usa orders.total correctamente)
-- Estructura de order_items
+- Tabla orders, order_items, customers (estructura)
+- Pricing unificado (getUnitPrice)
+- Finanzas (ya usa orders.total correctamente)
 - Delivery dashboard
-- Edge functions
-- RLS policies existentes
+- Recetas
+- RLS existentes (solo agregar para purchases)
+- CreateOrderForm, CustomerPicker
 
