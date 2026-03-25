@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,9 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useFinancialData, type Period } from "@/hooks/useFinancialData";
 import { useProductProfitability } from "@/hooks/useProductProfitability";
 import { useIngredients } from "@/hooks/useIngredients";
+import { usePurchases } from "@/hooks/usePurchases";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Plus, Percent, Wallet, BarChart3 } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Plus, Percent, Wallet, BarChart3, RefreshCw } from "lucide-react";
 
 const fmt = (cents: number) => `$${(cents / 100).toLocaleString("es-AR", { minimumFractionDigits: 0 })}`;
 
