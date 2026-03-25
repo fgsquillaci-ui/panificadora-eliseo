@@ -373,6 +373,7 @@ export type Database = {
           is_active: boolean
           name: string
           phone: string | null
+          staff_status: string
         }
         Insert: {
           created_at?: string
@@ -382,6 +383,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           phone?: string | null
+          staff_status?: string
         }
         Update: {
           created_at?: string
@@ -391,6 +393,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           phone?: string | null
+          staff_status?: string
         }
         Relationships: [
           {
@@ -398,6 +401,44 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchases: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          ingredient_id: string
+          quantity: number
+          total_cost: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          ingredient_id: string
+          quantity?: number
+          total_cost?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          ingredient_id?: string
+          quantity?: number
+          total_cost?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchases_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
             referencedColumns: ["id"]
           },
         ]
