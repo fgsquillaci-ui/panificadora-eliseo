@@ -138,6 +138,9 @@ const OwnerDashboard = () => {
           </CardContent>
         </Card>
 
+        {/* Cost Analysis */}
+        <CostAnalysisSection ingredients={ingredients} purchases={allPurchases} onUpdateCost={updateIngredient} />
+
         {/* Cash & Expenses */}
         <div className="grid md:grid-cols-2 gap-4">
           {/* Cash Movements */}
