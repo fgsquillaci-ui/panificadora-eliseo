@@ -37,92 +37,55 @@ Deno.serve(async (req) => {
     }
 
     const { action, ...payload } = await req.json();
+    const json = (body: unknown, status = 200) =>
+      new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+    // ── CREATE USER ──
     if (action === "create-user") {
       const { email, password, name, phone, role, customer_id } = payload;
 
-      // Check phone uniqueness
       if (phone) {
-        const { data: existing } = await supabaseAdmin
-          .from("profiles")
-          .select("id")
-          .eq("phone", phone)
-          .maybeSingle();
-        if (existing) {
-          return new Response(JSON.stringify({ error: "Ya existe un usuario con ese teléfono" }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
+        const { data: existing } = await supabaseAdmin.from("profiles").select("id").eq("phone", phone).maybeSingle();
+        if (existing) return json({ error: "Ya existe un usuario con ese teléfono" }, 400);
       }
 
-      // Create auth user
       const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
+        email, password, email_confirm: true,
         user_metadata: { name, phone: phone || "" },
       });
-      if (createErr) {
-        return new Response(JSON.stringify({ error: createErr.message }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      if (createErr) return json({ error: createErr.message }, 400);
 
       const userId = newUser.user.id;
-
-      // Ensure profile exists (trigger should create it, but update name/phone/customer_id)
-      await supabaseAdmin
-        .from("profiles")
-        .upsert({ id: userId, name, phone: phone || null, ...(customer_id ? { customer_id } : {}) }, { onConflict: "id" });
-
-      // Assign role
+      await supabaseAdmin.from("profiles").upsert(
+        { id: userId, name, phone: phone || null, ...(customer_id ? { customer_id } : {}) },
+        { onConflict: "id" }
+      );
       if (role) {
-        await supabaseAdmin
-          .from("user_roles")
-          .upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
+        await supabaseAdmin.from("user_roles").upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
       }
-
-      return new Response(JSON.stringify({ success: true, user_id: userId }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ success: true, user_id: userId });
     }
 
+    // ── UPDATE USER ──
     if (action === "update-user") {
-      const { user_id, name, phone, role, is_active, email, password } = payload;
+      const { user_id, name, phone, role, is_active, email, password, staff_status } = payload;
 
-      // Check phone uniqueness (exclude self)
       if (phone) {
-        const { data: existing } = await supabaseAdmin
-          .from("profiles")
-          .select("id")
-          .eq("phone", phone)
-          .neq("id", user_id)
-          .maybeSingle();
-        if (existing) {
-          return new Response(JSON.stringify({ error: "Ya existe un usuario con ese teléfono" }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
+        const { data: existing } = await supabaseAdmin.from("profiles").select("id").eq("phone", phone).neq("id", user_id).maybeSingle();
+        if (existing) return json({ error: "Ya existe un usuario con ese teléfono" }, 400);
       }
 
-      // Update profile
       const profileUpdate: Record<string, unknown> = {};
       if (name !== undefined) profileUpdate.name = name;
       if (phone !== undefined) profileUpdate.phone = phone || null;
       if (is_active !== undefined) profileUpdate.is_active = is_active;
+      if (staff_status !== undefined) profileUpdate.staff_status = staff_status;
 
       if (Object.keys(profileUpdate).length > 0) {
-        const { error } = await supabaseAdmin
-          .from("profiles")
-          .update(profileUpdate)
-          .eq("id", user_id);
+        const { error } = await supabaseAdmin.from("profiles").update(profileUpdate).eq("id", user_id);
         if (error) throw new Error(error.message);
       }
 
-      // Update auth email/password if provided
       const authUpdate: Record<string, unknown> = {};
       if (email) authUpdate.email = email;
       if (password) authUpdate.password = password;
@@ -132,83 +95,69 @@ Deno.serve(async (req) => {
         if (error) throw new Error(error.message);
       }
 
-      // Update role if provided
       if (role !== undefined) {
-        // Remove old roles
         await supabaseAdmin.from("user_roles").delete().eq("user_id", user_id);
-        // Assign new role
-        if (role) {
-          await supabaseAdmin.from("user_roles").insert({ user_id, role });
-        }
+        if (role) await supabaseAdmin.from("user_roles").insert({ user_id, role });
       }
-
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ success: true });
     }
 
+    // ── PAUSE USER ──
+    if (action === "pause-user") {
+      const { user_id } = payload;
+      await supabaseAdmin.from("profiles").update({ staff_status: "pausado", is_active: false }).eq("id", user_id);
+      return json({ success: true });
+    }
+
+    // ── REMOVE STAFF (dar de baja) ──
+    if (action === "remove-staff") {
+      const { user_id } = payload;
+      // Check if last admin
+      const { data: targetRoles } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", user_id).eq("role", "admin");
+      if (targetRoles && targetRoles.length > 0) {
+        const { data: allAdmins } = await supabaseAdmin.from("user_roles").select("user_id").eq("role", "admin");
+        if (allAdmins && allAdmins.length <= 1) {
+          return json({ error: "No se puede dar de baja al único admin" }, 400);
+        }
+      }
+      // Remove all roles
+      await supabaseAdmin.from("user_roles").delete().eq("user_id", user_id);
+      // Mark as baja
+      await supabaseAdmin.from("profiles").update({ staff_status: "baja", is_active: false }).eq("id", user_id);
+      return json({ success: true });
+    }
+
+    // ── DEACTIVATE USER ──
     if (action === "deactivate-user") {
       const { user_id } = payload;
-
-      // Check if this is the last admin
-      const { data: adminRoles } = await supabaseAdmin
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "admin");
-
-      const { data: targetRoles } = await supabaseAdmin
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user_id)
-        .eq("role", "admin");
+      const { data: adminRoles } = await supabaseAdmin.from("user_roles").select("user_id").eq("role", "admin");
+      const { data: targetRoles } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", user_id).eq("role", "admin");
 
       if (targetRoles && targetRoles.length > 0) {
         const activeAdmins = adminRoles || [];
-        // Check how many active admins exist
-        const { data: activeAdminProfiles } = await supabaseAdmin
-          .from("profiles")
-          .select("id")
-          .eq("is_active", true)
-          .in("id", activeAdmins.map(r => r.user_id));
-
+        const { data: activeAdminProfiles } = await supabaseAdmin.from("profiles").select("id").eq("is_active", true).in("id", activeAdmins.map(r => r.user_id));
         if (activeAdminProfiles && activeAdminProfiles.length <= 1) {
-          return new Response(JSON.stringify({ error: "No se puede desactivar al único admin activo" }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+          return json({ error: "No se puede desactivar al único admin activo" }, 400);
         }
       }
-
-      await supabaseAdmin
-        .from("profiles")
-        .update({ is_active: false })
-        .eq("id", user_id);
-
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      await supabaseAdmin.from("profiles").update({ is_active: false }).eq("id", user_id);
+      return json({ success: true });
     }
 
+    // ── GET USER EMAIL ──
     if (action === "get-user-email") {
       const { user_id } = payload;
       const { data, error } = await supabaseAdmin.auth.admin.getUserById(user_id);
       if (error) throw new Error(error.message);
-      return new Response(JSON.stringify({ email: data.user.email }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ email: data.user.email });
     }
 
-    // Legacy actions
+    // Legacy
     if (action === "setup" || action === "update-delivery") {
-      return new Response(JSON.stringify({ success: true, message: "Legacy action, no-op" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ success: true, message: "Legacy action, no-op" });
     }
 
-    return new Response(JSON.stringify({ error: "Acción no reconocida" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ error: "Acción no reconocida" }, 400);
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
