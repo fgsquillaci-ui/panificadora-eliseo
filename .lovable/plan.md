@@ -1,113 +1,124 @@
 
 
-## Sistema Profesional Completo — Plan de Implementacion
+## Arquitectura Financiera Unificada — Plan de Implementacion
 
-### Diagnostico de lo que falta
+### Estado actual vs objetivo
 
-| Problema | Estado actual |
-|----------|--------------|
-| Registro crea profile pero NO customer | El trigger `handle_new_user` solo crea profile. Usuario registrado no aparece en clientes. |
-| Personal solo tiene activar/desactivar | No hay estados Pausado/Baja. No se puede "dar de baja" (eliminar rol y mantener como cliente). |
-| Ingredientes sin historial de compras | No hay tabla de compras ni costo ponderado. Solo costo fijo manual. |
-| Nombre "Ingredientes" | Debe ser "Materia Prima" |
+| Modulo | Estado actual | Problema |
+|--------|--------------|----------|
+| Materia prima | `costo_unitario` manual, `purchases` registra compras | No hay historial automatico de costos al comprar |
+| Recetas | Calcula costo dinamico desde `ingredients.costo_unitario` | Correcto, no requiere cambios |
+| Productos | Solo precios de venta, sin `current_cost` ni `target_margin` | Admin no ve costo vs precio sugerido por producto |
+| Pedidos | Guarda `unit_price` y `total` en `order_items` | No guarda snapshot de costo ni margen al momento de venta |
+| Finanzas | Calcula costo estimado desde recetas actuales (no historico) | Si cambian costos, el historico financiero se distorsiona |
 
-Lo que YA funciona y NO se toca: pricing unificado, metodo de pago, finanzas desde orders.total, recetas, order_history, error_logs, CustomerPicker, delivery.
+### Cambios incrementales (sin romper nada)
 
 ---
 
 ### 1. Migracion de base de datos
 
-**a) Trigger: registro publico crea customer automaticamente**
-
-Modificar `handle_new_user` para que ademas de crear profile, cree un registro en `customers` con el mismo nombre/telefono y vincule `profiles.customer_id`.
-
-**b) Agregar campo `staff_status` a profiles**
-
-```sql
-ALTER TABLE profiles ADD COLUMN staff_status text NOT NULL DEFAULT 'activo';
--- valores: 'activo', 'pausado', 'baja'
-```
-
-**c) Tabla `purchases` (compras de materia prima)**
+**a) Tabla `raw_material_cost_history`** — historial automatico de costos
 
 ```text
-purchases
+raw_material_cost_history
 ├── id (uuid PK)
 ├── ingredient_id (uuid FK → ingredients)
-├── quantity (numeric)
-├── unit_price (integer, centavos)
-├── total_cost (integer, centavos)
-├── date (date)
+├── purchase_id (uuid FK → purchases, nullable)
+├── old_cost (integer, centavos)
+├── new_cost (integer, centavos)
 ├── created_at (timestamptz)
 ```
 
-RLS: admin only. Realtime habilitado.
+RLS: admin only.
 
-**d) Agregar action `remove-role` a manage-users edge function**
+**b) Columnas nuevas en `products`**
 
-Para dar de baja personal: eliminar de user_roles, marcar `staff_status = 'baja'`.
+```sql
+ALTER TABLE products ADD COLUMN target_margin numeric DEFAULT 30;
+ALTER TABLE products ADD COLUMN last_cost_sync_at timestamptz;
+```
 
----
+No agregar `current_cost` como columna — se calcula dinamicamente desde recetas (SSOT). `target_margin` es configurable por producto.
 
-### 2. Registro publico → crear customer
+**c) Columnas de snapshot en `order_items`**
 
-Actualizar trigger `handle_new_user` para:
-1. Insertar en `customers` (name, phone, created_by='registro')
-2. Actualizar `profiles.customer_id` con el id del customer creado
+```sql
+ALTER TABLE order_items ADD COLUMN cost_snapshot integer DEFAULT 0;
+ALTER TABLE order_items ADD COLUMN margin_snapshot numeric DEFAULT 0;
+ALTER TABLE order_items ADD COLUMN product_id uuid;
+```
 
-Resultado: todo usuario registrado aparece como cliente automaticamente.
+Esto permite que finanzas use datos historicos inmutables.
 
----
+**d) Columnas de estado de cobro en `orders`**
 
-### 3. Gestion de Personal — Estados profesionales
-
-**Reemplazar sistema actual en `Users.tsx`:**
-
-- Mostrar estado: Activo (verde), Pausado (amarillo), Baja (rojo)
-- Acciones por estado:
-  - Activo → Pausar / Dar de baja
-  - Pausado → Reactivar / Dar de baja
-  - Baja → no aparece en lista (vuelve a ser solo cliente)
-- "Dar de baja" = eliminar rol de `user_roles` + `staff_status = 'baja'`
-- Personal dado de baja sigue visible en Clientes
-
-**Actualizar edge function `manage-users`:**
-- Nueva action `pause-user`: `staff_status = 'pausado'`
-- Nueva action `remove-staff`: eliminar de `user_roles`, `staff_status = 'baja'`
-- Action `update-user` con `staff_status = 'activo'` para reactivar
+```sql
+ALTER TABLE orders ADD COLUMN payment_status text NOT NULL DEFAULT 'no_cobrado';
+-- valores: 'no_cobrado', 'parcial', 'cobrado'
+```
 
 ---
 
-### 4. Renombrar Ingredientes → Materia Prima
+### 2. Automatizar historial de costos en compras
 
-- `DashboardLayout.tsx`: label "Ingredientes" → "Materia Prima"
-- `Ingredients.tsx`: titulo "Ingredientes" → "Materia Prima", textos internos
-- `useIngredients.ts`: sin cambios (tabla sigue siendo `ingredients`)
+Modificar `usePurchases.ts` → al registrar compra:
+1. Calcular nuevo costo promedio ponderado
+2. Insertar en `raw_material_cost_history` (old_cost, new_cost)
+3. Actualizar `ingredients.costo_unitario` al promedio
 
----
-
-### 5. Compras de Materia Prima + Costo Ponderado
-
-**Nuevo hook `usePurchases.ts`:**
-- CRUD de compras vinculadas a ingredient_id
-- Al registrar compra: actualizar `ingredients.stock_actual` (sumar quantity)
-- Calcular costo promedio ponderado: `total_invertido / cantidad_total`
-
-**Actualizar pagina `Ingredients.tsx`:**
-- Agregar seccion "Compras" por ingrediente (historial)
-- Boton "Registrar compra" (cantidad, precio unitario, fecha)
-- Mostrar costo promedio vs costo actual
-- Al registrar compra, stock se actualiza automaticamente
+Ya hace pasos 1 y 3 parcialmente. Agregar paso 2.
 
 ---
 
-### 6. Panel de Analisis de Costos en OwnerDashboard
+### 3. Snapshots al crear pedido
 
-Agregar seccion en `OwnerDashboard.tsx`:
-- Por producto: costo actual (receta) vs costo sugerido (promedio ponderado de compras)
-- Diferencia %
-- Alerta si diferencia > 15%
-- Boton "Actualizar costo" que modifica `ingredients.costo_unitario` al promedio
+Modificar `CreateOrderForm.tsx` → al insertar `order_items`:
+- Buscar receta del producto y calcular `cost_snapshot` (costo unitario de produccion)
+- Calcular `margin_snapshot` = `(unit_price - cost_snapshot) / unit_price * 100`
+- Guardar `product_id` para trazabilidad
+
+---
+
+### 4. Panel de productos con decision de precios
+
+Crear nueva seccion en `OwnerDashboard` o pagina dedicada:
+- Por producto: costo actual (receta), precio actual, margen actual, margen objetivo, precio sugerido
+- Formula: `suggested_price = current_cost / (1 - target_margin/100)`
+- Boton "Aplicar precio sugerido" (actualiza `retail_price` en products)
+- Permitir editar `target_margin` por producto
+- Colores: verde (margen >= objetivo), amarillo (5% debajo), rojo (margen negativo)
+
+---
+
+### 5. Finanzas basada en snapshots
+
+Modificar `useProductProfitability.ts`:
+- SI `order_items` tiene `cost_snapshot > 0` → usar snapshot (datos historicos)
+- SI no tiene snapshot (pedidos viejos) → fallback a calculo desde recetas (comportamiento actual)
+
+Esto garantiza que datos futuros sean inmutables y datos viejos sigan funcionando.
+
+---
+
+### 6. Estado de cobro en pedidos
+
+Agregar selector de `payment_status` en el flujo de pedidos:
+- En `AdminDashboard` y `Orders`: boton para marcar como cobrado
+- Impacto en finanzas: separar ventas confirmadas vs cobradas
+- En OwnerDashboard: mostrar "pendientes de cobro"
+
+---
+
+### 7. Alertas inteligentes (extender existentes)
+
+Agregar al OwnerDashboard:
+- Producto sin receta → alerta amarilla
+- Costo = 0 en ingrediente con receta → alerta roja
+- Margen < target_margin → alerta amarilla
+- Pedidos no cobrados acumulados → alerta
+
+Ya existen alertas de stock bajo y margen bajo. Extender logica.
 
 ---
 
@@ -115,21 +126,27 @@ Agregar seccion en `OwnerDashboard.tsx`:
 
 | Archivo | Accion |
 |---------|--------|
-| Migracion SQL | `staff_status` en profiles, tabla `purchases`, trigger `handle_new_user` actualizado |
-| `supabase/functions/manage-users/index.ts` | Actions: `pause-user`, `remove-staff` |
-| `src/components/DashboardLayout.tsx` | "Ingredientes" → "Materia Prima" |
-| `src/pages/admin/Ingredients.tsx` | Renombrar + agregar seccion compras |
-| `src/pages/admin/Users.tsx` | Estados Activo/Pausado/Baja, dar de baja |
-| `src/hooks/usePurchases.ts` | Nuevo — CRUD compras + costo ponderado |
-| `src/pages/admin/OwnerDashboard.tsx` | Seccion analisis de costos sugeridos |
+| Migracion SQL | `raw_material_cost_history`, columnas en `products`, `order_items`, `orders` |
+| `src/hooks/usePurchases.ts` | Insertar en historial de costos al comprar |
+| `src/components/CreateOrderForm.tsx` | Agregar snapshots al crear order_items |
+| `src/hooks/useProductProfitability.ts` | Usar snapshots cuando disponibles |
+| `src/pages/admin/OwnerDashboard.tsx` | Seccion de pricing por producto + alertas + pendientes de cobro |
+| `src/pages/admin/Orders.tsx` | Boton cobrar pedido |
+| `src/pages/admin/Dashboard.tsx` | Boton cobrar pedido |
 
 ### Lo que NO se modifica
 
-- Tabla orders, order_items, customers (estructura)
-- Pricing unificado (getUnitPrice)
-- Finanzas (ya usa orders.total correctamente)
-- Delivery dashboard
-- Recetas
-- RLS existentes (solo agregar para purchases)
-- CreateOrderForm, CustomerPicker
+- Tabla `recipes` (sigue siendo capa de transformacion pura)
+- Tabla `ingredients` (estructura sin cambios, solo se le escribe automaticamente)
+- `getUnitPrice` / pricing unificado (sigue igual)
+- CustomerPicker, delivery dashboard
+- Edge functions existentes
+
+### Principios respetados
+
+- SSOT: costos vienen de `ingredients.costo_unitario`, actualizado por compras
+- Recetas: solo transformacion, costo siempre dinamico
+- Snapshots: pedidos guardan foto del momento, finanzas los consume
+- Control manual: admin decide cuando aplicar precio sugerido
+- Compatibilidad: pedidos viejos sin snapshot usan fallback a recetas
 
