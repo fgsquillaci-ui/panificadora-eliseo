@@ -4,7 +4,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import OrderDetail from "@/components/OrderDetail";
 import CreateOrderForm from "@/components/CreateOrderForm";
 import { useRealtimeOrders, type Order } from "@/hooks/useRealtimeOrders";
-import { CheckCircle, Clock, TrendingUp, Plus, Factory, PackageCheck, Truck, Undo2 } from "lucide-react";
+import { CheckCircle, Clock, TrendingUp, Plus, Factory, PackageCheck, Truck, Undo2, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
