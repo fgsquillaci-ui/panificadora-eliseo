@@ -27,9 +27,9 @@ const OwnerDashboard = () => {
   const [pendingPayments, setPendingPayments] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
   useEffect(() => {
     const fetchPending = async () => {
-      const { data } = await supabase.from("orders").select("total").neq("payment_status" as any, "cobrado").eq("status", "entregado" as any);
-      const items = data || [];
-      setPendingPayments({ count: items.length, total: items.reduce((s, o) => s + (o.total || 0), 0) });
+      const { data } = await supabase.from("orders").select("total").eq("status", "entregado" as any);
+      const items = (data || []).filter((o: any) => (o as any).payment_status !== "cobrado");
+      setPendingPayments({ count: items.length, total: items.reduce((s: number, o: any) => s + (o.total || 0), 0) });
     };
     fetchPending();
   }, [period]);
