@@ -4,7 +4,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import OrderDetail from "@/components/OrderDetail";
 import CreateOrderForm from "@/components/CreateOrderForm";
 import { useRealtimeOrders, type Order } from "@/hooks/useRealtimeOrders";
-import { CheckCircle, Clock, TrendingUp, Plus, Factory, PackageCheck, Truck, Undo2 } from "lucide-react";
+import { CheckCircle, Clock, TrendingUp, Plus, Factory, PackageCheck, Truck, Undo2, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -48,6 +48,11 @@ const AdminDashboard = () => {
   const { orders, loading } = useRealtimeOrders({ limit: 100 });
   const [filter, setFilter] = useState<OrderStatus | "todos">("todos");
   const [showCreate, setShowCreate] = useState(false);
+
+  const markAsPaid = async (orderId: string) => {
+    const { error } = await supabase.from("orders").update({ payment_status: "cobrado" } as any).eq("id", orderId);
+    if (error) { toast.error("Error al marcar como cobrado"); } else { toast.success("Pedido cobrado"); }
+  };
 
   const changeStatus = async (orderId: string, newStatus: OrderStatus) => {
     const { error } = await supabase
@@ -154,6 +159,11 @@ const AdminDashboard = () => {
                     resellerName={order.reseller_name}
                     actions={
                       <div className="flex gap-1.5 flex-wrap">
+                        {(order as any).payment_status !== "cobrado" && (
+                          <Button size="sm" variant="outline" onClick={() => markAsPaid(order.id)} className="gap-1 font-body text-xs">
+                            <DollarSign className="w-3.5 h-3.5" /> Cobrar
+                          </Button>
+                        )}
                         {prevStatusAction[order.status] && (
                           <Button
                             size="sm"

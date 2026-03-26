@@ -227,24 +227,33 @@ export type Database = {
       }
       order_items: {
         Row: {
+          cost_snapshot: number | null
           id: string
+          margin_snapshot: number | null
           order_id: string
+          product_id: string | null
           product_name: string
           quantity: number
           total: number
           unit_price: number
         }
         Insert: {
+          cost_snapshot?: number | null
           id?: string
+          margin_snapshot?: number | null
           order_id: string
+          product_id?: string | null
           product_name: string
           quantity?: number
           total?: number
           unit_price?: number
         }
         Update: {
+          cost_snapshot?: number | null
           id?: string
+          margin_snapshot?: number | null
           order_id?: string
+          product_id?: string | null
           product_name?: string
           quantity?: number
           total?: number
@@ -272,6 +281,7 @@ export type Database = {
           delivery_type: string
           id: string
           payment_method: string
+          payment_status: string
           pickup_time: string | null
           reseller_name: string | null
           status: Database["public"]["Enums"]["order_status"]
@@ -290,6 +300,7 @@ export type Database = {
           delivery_type?: string
           id?: string
           payment_method?: string
+          payment_status?: string
           pickup_time?: string | null
           reseller_name?: string | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -308,6 +319,7 @@ export type Database = {
           delivery_type?: string
           id?: string
           payment_method?: string
+          payment_status?: string
           pickup_time?: string | null
           reseller_name?: string | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -333,8 +345,10 @@ export type Database = {
           emoji: string
           id: string
           intermediate_price: number | null
+          last_cost_sync_at: string | null
           name: string
           retail_price: number | null
+          target_margin: number | null
           unit: string | null
           wholesale_price: number | null
         }
@@ -345,8 +359,10 @@ export type Database = {
           emoji?: string
           id?: string
           intermediate_price?: number | null
+          last_cost_sync_at?: string | null
           name: string
           retail_price?: number | null
+          target_margin?: number | null
           unit?: string | null
           wholesale_price?: number | null
         }
@@ -357,8 +373,10 @@ export type Database = {
           emoji?: string
           id?: string
           intermediate_price?: number | null
+          last_cost_sync_at?: string | null
           name?: string
           retail_price?: number | null
+          target_margin?: number | null
           unit?: string | null
           wholesale_price?: number | null
         }
@@ -439,6 +457,48 @@ export type Database = {
             columns: ["ingredient_id"]
             isOneToOne: false
             referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      raw_material_cost_history: {
+        Row: {
+          created_at: string
+          id: string
+          ingredient_id: string
+          new_cost: number
+          old_cost: number
+          purchase_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ingredient_id: string
+          new_cost?: number
+          old_cost?: number
+          purchase_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ingredient_id?: string
+          new_cost?: number
+          old_cost?: number
+          purchase_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "raw_material_cost_history_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "raw_material_cost_history_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
             referencedColumns: ["id"]
           },
         ]

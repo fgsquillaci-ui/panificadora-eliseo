@@ -37,13 +37,13 @@ export function useProductProfitability(period: Period) {
 
       if (orderIds.length === 0) { setData([]); setEstimatedCost(0); setLoading(false); return; }
 
-      // Get order items for those orders
-      const { data: items } = await supabase.from("order_items").select("product_name, quantity, unit_price, total").in("order_id", orderIds);
+      // Get order items for those orders (include snapshots)
+      const { data: items } = await supabase.from("order_items").select("product_name, quantity, unit_price, total, cost_snapshot, margin_snapshot, product_id").in("order_id", orderIds);
 
-      // Get all recipes with ingredient costs
+      // Get all recipes with ingredient costs (fallback for items without snapshots)
       const { data: recipes } = await supabase.from("recipes").select("product_id, quantity, ingredients(costo_unitario), products(name)");
 
-      // Build cost map: product_name → cost per unit
+      // Build cost map: product_name → cost per unit (fallback)
       const costMap: Record<string, number> = {};
       const recipeProducts = new Set<string>();
       (recipes || []).forEach((r: any) => {
@@ -54,21 +54,26 @@ export function useProductProfitability(period: Period) {
       });
 
       // Aggregate by product
-      const agg: Record<string, { units: number; revenue: number }> = {};
-      (items || []).forEach(i => {
-        if (!agg[i.product_name]) agg[i.product_name] = { units: 0, revenue: 0 };
+      const agg: Record<string, { units: number; revenue: number; snapshotCost: number; hasSnapshot: boolean }> = {};
+      (items || []).forEach((i: any) => {
+        if (!agg[i.product_name]) agg[i.product_name] = { units: 0, revenue: 0, snapshotCost: 0, hasSnapshot: false };
         agg[i.product_name].units += i.quantity;
         agg[i.product_name].revenue += i.total;
+        // Use snapshot if available, otherwise will fallback to recipe
+        if (i.cost_snapshot && i.cost_snapshot > 0) {
+          agg[i.product_name].snapshotCost += i.cost_snapshot * i.quantity;
+          agg[i.product_name].hasSnapshot = true;
+        }
       });
 
       let totalCost = 0;
-      const result: ProductProfit[] = Object.entries(agg).map(([name, { units, revenue }]) => {
+      const result: ProductProfit[] = Object.entries(agg).map(([name, { units, revenue, snapshotCost, hasSnapshot }]) => {
         const hasRecipe = recipeProducts.has(name);
-        const unitCost = costMap[name] || 0;
-        const cost = unitCost * units;
+        // Prefer snapshot cost, fallback to recipe-based cost
+        const cost = hasSnapshot ? snapshotCost : (costMap[name] || 0) * units;
         totalCost += cost;
         const margin = revenue > 0 ? ((revenue - cost) / revenue) * 100 : 0;
-        return { product_name: name, units_sold: units, revenue, cost, margin: hasRecipe ? margin : -1, hasRecipe };
+        return { product_name: name, units_sold: units, revenue, cost, margin: (hasRecipe || hasSnapshot) ? margin : -1, hasRecipe: hasRecipe || hasSnapshot };
       }).sort((a, b) => b.revenue - a.revenue);
 
       setData(result);

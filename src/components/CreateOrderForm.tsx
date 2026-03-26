@@ -152,13 +152,28 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
       return;
     }
 
-    const items = cart.map((i) => ({
-      order_id: order.id,
-      product_name: i.name,
-      quantity: i.quantity,
-      unit_price: i.price,
-      total: i.price * i.quantity,
-    }));
+    // Fetch recipes + ingredient costs for snapshots
+    const { data: recipes } = await supabase.from("recipes").select("product_id, quantity, ingredients(costo_unitario)");
+    const costMap: Record<string, number> = {};
+    (recipes || []).forEach((r: any) => {
+      const pid = r.product_id;
+      costMap[pid] = (costMap[pid] || 0) + Number(r.quantity) * (r.ingredients?.costo_unitario || 0);
+    });
+
+    const items = cart.map((i) => {
+      const unitCost = costMap[i.productId] || 0;
+      const marginPct = i.price > 0 ? ((i.price - unitCost) / i.price) * 100 : 0;
+      return {
+        order_id: order.id,
+        product_name: i.name,
+        quantity: i.quantity,
+        unit_price: i.price,
+        total: i.price * i.quantity,
+        product_id: i.productId,
+        cost_snapshot: unitCost,
+        margin_snapshot: Math.round(marginPct * 10) / 10,
+      };
+    });
 
     const { error: itemsError } = await supabase.from("order_items").insert(items);
     if (itemsError) {

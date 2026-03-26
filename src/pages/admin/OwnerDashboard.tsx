@@ -12,7 +12,7 @@ import { useIngredients } from "@/hooks/useIngredients";
 import { usePurchases } from "@/hooks/usePurchases";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Plus, Percent, Wallet, BarChart3, RefreshCw } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Plus, Percent, Wallet, BarChart3, RefreshCw, Tag, AlertCircle } from "lucide-react";
 
 const fmt = (cents: number) => `$${(cents / 100).toLocaleString("es-AR", { minimumFractionDigits: 0 })}`;
 
@@ -23,6 +23,43 @@ const OwnerDashboard = () => {
   const { ingredients, lowStock, update: updateIngredient } = useIngredients();
   const { purchases: allPurchases } = usePurchases();
 
+  // Pending payments
+  const [pendingPayments, setPendingPayments] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
+  useEffect(() => {
+    const fetchPending = async () => {
+      const { data } = await supabase.from("orders").select("total").eq("status", "entregado" as any);
+      const items = (data || []).filter((o: any) => (o as any).payment_status !== "cobrado");
+      setPendingPayments({ count: items.length, total: items.reduce((s: number, o: any) => s + (o.total || 0), 0) });
+    };
+    fetchPending();
+  }, [period]);
+
+  // Product pricing data
+  const [pricingData, setPricingData] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchPricing = async () => {
+      const { data: prods } = await supabase.from("products").select("id, name, retail_price, target_margin");
+      const { data: recipes } = await supabase.from("recipes").select("product_id, quantity, ingredients(costo_unitario)");
+      
+      const costMap: Record<string, number> = {};
+      (recipes || []).forEach((r: any) => {
+        costMap[r.product_id] = (costMap[r.product_id] || 0) + Number(r.quantity) * (r.ingredients?.costo_unitario || 0);
+      });
+      
+      const rows = (prods || []).map((p: any) => {
+        const cost = costMap[p.id] || 0;
+        const price = p.retail_price || 0;
+        const targetMargin = p.target_margin ?? 30;
+        const currentMargin = price > 0 ? ((price - cost) / price) * 100 : 0;
+        const suggestedPrice = targetMargin < 100 ? Math.round(cost / (1 - targetMargin / 100)) : cost;
+        return { id: p.id, name: p.name, cost, price, targetMargin, currentMargin, suggestedPrice, hasRecipe: cost > 0 };
+      }).filter((p: any) => p.hasRecipe);
+      
+      setPricingData(rows);
+    };
+    fetchPricing();
+  }, [ingredients]);
+
   const profit = revenue - estimatedCost - expenses;
   const margin = revenue > 0 ? ((revenue - estimatedCost) / revenue) * 100 : 0;
   const available = Math.max(0, profit - totalWithdrawals);
@@ -30,6 +67,8 @@ const OwnerDashboard = () => {
   // Alerts
   const lowMarginProducts = products.filter(p => p.hasRecipe && p.margin < 20 && p.margin >= 0);
   const highExpenses = revenue > 0 && expenses > revenue * 0.5;
+  const noRecipeProducts = pricingData.length === 0 ? [] : [];
+  const negativeMarginPricing = pricingData.filter(p => p.currentMargin < 0);
 
   // Expense form
   const [expOpen, setExpOpen] = useState(false);
@@ -59,6 +98,14 @@ const OwnerDashboard = () => {
     toast.success("Movimiento registrado");
   };
 
+  const applySuggestedPrice = async (productId: string, suggestedPrice: number) => {
+    const { error } = await supabase.from("products").update({ retail_price: suggestedPrice, last_cost_sync_at: new Date().toISOString() } as any).eq("id", productId);
+    if (error) { toast.error("Error al actualizar precio"); } else {
+      toast.success("Precio actualizado");
+      setPricingData(prev => prev.map(p => p.id === productId ? { ...p, price: suggestedPrice, currentMargin: p.targetMargin } : p));
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -85,8 +132,14 @@ const OwnerDashboard = () => {
         </div>
 
         {/* Alerts */}
-        {(lowStock.length > 0 || lowMarginProducts.length > 0 || highExpenses) && (
+        {(lowStock.length > 0 || lowMarginProducts.length > 0 || highExpenses || pendingPayments.count > 0 || negativeMarginPricing.length > 0) && (
           <div className="grid gap-2">
+            {pendingPayments.count > 0 && (
+              <AlertCard type="warning" text={`${pendingPayments.count} pedido(s) entregado(s) sin cobrar — ${fmt(pendingPayments.total)} pendiente`} />
+            )}
+            {negativeMarginPricing.map(p => (
+              <AlertCard key={p.id} type="destructive" text={`Margen negativo: ${p.name} (${p.currentMargin.toFixed(1)}%)`} />
+            ))}
             {lowStock.map(i => (
               <AlertCard key={i.id} type="destructive" text={`Stock bajo: ${i.name} (${i.stock_actual} ${i.unit})`} />
             ))}
@@ -137,6 +190,53 @@ const OwnerDashboard = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Pricing Panel */}
+        {pricingData.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-heading flex items-center gap-2"><Tag className="w-4 h-4" /> Decisión de precios</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="border-b text-left text-muted-foreground">
+                    <th className="py-2 font-medium">Producto</th>
+                    <th className="py-2 font-medium text-right">Costo</th>
+                    <th className="py-2 font-medium text-right">Precio actual</th>
+                    <th className="py-2 font-medium text-right">Margen actual</th>
+                    <th className="py-2 font-medium text-right">Objetivo</th>
+                    <th className="py-2 font-medium text-right">Precio sugerido</th>
+                    <th className="py-2 font-medium text-right">Acción</th>
+                  </tr></thead>
+                  <tbody>
+                    {pricingData.map(p => (
+                      <tr key={p.id} className="border-b last:border-0">
+                        <td className="py-2 font-body">{p.name}</td>
+                        <td className="py-2 text-right">{fmt(p.cost)}</td>
+                        <td className="py-2 text-right">{fmt(p.price)}</td>
+                        <td className="py-2 text-right">
+                          <Badge variant={p.currentMargin >= p.targetMargin ? "default" : p.currentMargin >= p.targetMargin - 5 ? "secondary" : "destructive"}>
+                            {p.currentMargin.toFixed(1)}%
+                          </Badge>
+                        </td>
+                        <td className="py-2 text-right text-muted-foreground">{p.targetMargin}%</td>
+                        <td className="py-2 text-right font-semibold">{fmt(p.suggestedPrice)}</td>
+                        <td className="py-2 text-right">
+                          {Math.abs(p.price - p.suggestedPrice) > 50 && (
+                            <Button size="sm" variant="outline" onClick={() => applySuggestedPrice(p.id, p.suggestedPrice)}>
+                              Aplicar
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Cost Analysis */}
         <CostAnalysisSection ingredients={ingredients} purchases={allPurchases} onUpdateCost={updateIngredient} />
@@ -249,6 +349,7 @@ const AlertCard = ({ type, text }: { type: "destructive" | "warning"; text: stri
     {text}
   </div>
 );
+
 // Cost Analysis Section
 import type { Ingredient } from "@/hooks/useIngredients";
 import type { Purchase } from "@/hooks/usePurchases";
@@ -258,7 +359,6 @@ const CostAnalysisSection = ({ ingredients, purchases, onUpdateCost }: {
   purchases: Purchase[];
   onUpdateCost: (id: string, values: Partial<Ingredient>) => Promise<boolean>;
 }) => {
-  // Calculate weighted avg cost per ingredient from purchases
   const avgCosts: Record<string, number> = {};
   const grouped: Record<string, { totalCost: number; totalQty: number }> = {};
   purchases.forEach(p => {
