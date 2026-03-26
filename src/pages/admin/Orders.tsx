@@ -2,10 +2,12 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useRealtimeOrders } from "@/hooks/useRealtimeOrders";
 import { logError } from "@/lib/orderHistory";
+import { DollarSign } from "lucide-react";
 
 type OrderStatus = "pendiente" | "en_produccion" | "listo" | "en_delivery" | "entregado";
 
@@ -27,6 +29,18 @@ const statusColors: Record<OrderStatus, string> = {
   entregado: "bg-green-100 text-green-800",
 };
 
+const paymentLabels: Record<string, string> = {
+  no_cobrado: "No cobrado",
+  parcial: "Parcial",
+  cobrado: "Cobrado",
+};
+
+const paymentColors: Record<string, string> = {
+  no_cobrado: "bg-red-100 text-red-800",
+  parcial: "bg-yellow-100 text-yellow-800",
+  cobrado: "bg-green-100 text-green-800",
+};
+
 const AdminOrders = () => {
   const { orders, loading } = useRealtimeOrders();
   const [filter, setFilter] = useState<string>("todos");
@@ -34,12 +48,10 @@ const AdminOrders = () => {
   const updateStatus = async (orderId: string, currentStatus: OrderStatus, newStatus: OrderStatus) => {
     const currentIdx = STATUS_FLOW.indexOf(currentStatus);
     const newIdx = STATUS_FLOW.indexOf(newStatus);
-    // Allow forward +1 or backward -1
     if (Math.abs(newIdx - currentIdx) > 1 || newIdx === currentIdx) {
       toast.error("Solo podés avanzar o retroceder un estado");
       return;
     }
-    // Don't allow going back from entregado
     if (currentStatus === "entregado") {
       toast.error("No se puede retroceder desde entregado");
       return;
@@ -53,6 +65,18 @@ const AdminOrders = () => {
       logError("Status change failed (orders page)", { orderId, newStatus, error });
     } else {
       toast.success(`Estado actualizado a "${statusLabels[newStatus]}"`);
+    }
+  };
+
+  const markAsPaid = async (orderId: string) => {
+    const { error } = await supabase
+      .from("orders")
+      .update({ payment_status: "cobrado" } as any)
+      .eq("id", orderId);
+    if (error) {
+      toast.error("Error al marcar como cobrado");
+    } else {
+      toast.success("Pedido marcado como cobrado");
     }
   };
 
@@ -91,41 +115,54 @@ const AdminOrders = () => {
           <p className="text-muted-foreground font-body">No hay pedidos.</p>
         ) : (
           <div className="space-y-3">
-            {filtered.map((order) => (
-              <div key={order.id} className="bg-card rounded-xl border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-body font-semibold text-sm">{order.customer_name}</span>
-                    {order.reseller_name ? (
-                      <span className="font-body text-[10px] text-muted-foreground">vía {order.reseller_name}</span>
-                    ) : (
-                      <span className="font-body text-[10px] text-primary font-medium">Directo</span>
-                    )}
-                    <Badge className={`${statusColors[order.status]} border-0 text-[10px] font-body`}>
-                      {statusLabels[order.status]}
-                    </Badge>
+            {filtered.map((order) => {
+              const paymentStatus = (order as any).payment_status || "no_cobrado";
+              return (
+                <div key={order.id} className="bg-card rounded-xl border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-body font-semibold text-sm">{order.customer_name}</span>
+                      {order.reseller_name ? (
+                        <span className="font-body text-[10px] text-muted-foreground">vía {order.reseller_name}</span>
+                      ) : (
+                        <span className="font-body text-[10px] text-primary font-medium">Directo</span>
+                      )}
+                      <Badge className={`${statusColors[order.status]} border-0 text-[10px] font-body`}>
+                        {statusLabels[order.status]}
+                      </Badge>
+                      <Badge className={`${paymentColors[paymentStatus]} border-0 text-[10px] font-body`}>
+                        {paymentLabels[paymentStatus]}
+                      </Badge>
+                    </div>
+                    <p className="font-body text-xs text-muted-foreground">
+                      {order.delivery_type === "delivery" ? `📍 ${order.address || "Sin dirección"}` : "🏪 Retiro en local"}
+                      {" · "}${order.total.toLocaleString("es-AR")}
+                      {" · "}{new Date(order.created_at).toLocaleDateString("es-AR")}
+                    </p>
                   </div>
-                  <p className="font-body text-xs text-muted-foreground">
-                    {order.delivery_type === "delivery" ? `📍 ${order.address || "Sin dirección"}` : "🏪 Retiro en local"}
-                    {" · "}${order.total.toLocaleString("es-AR")}
-                    {" · "}{new Date(order.created_at).toLocaleDateString("es-AR")}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    {paymentStatus !== "cobrado" && (
+                      <Button size="sm" variant="outline" onClick={() => markAsPaid(order.id)} className="gap-1 text-xs">
+                        <DollarSign className="w-3 h-3" /> Cobrar
+                      </Button>
+                    )}
+                    <Select
+                      value={order.status}
+                      onValueChange={(v) => updateStatus(order.id, order.status, v as OrderStatus)}
+                    >
+                      <SelectTrigger className="w-40 h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getAvailableStatuses(order.status).map((s) => (
+                          <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <Select
-                  value={order.status}
-                  onValueChange={(v) => updateStatus(order.id, order.status, v as OrderStatus)}
-                >
-                  <SelectTrigger className="w-40 h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getAvailableStatuses(order.status).map((s) => (
-                      <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

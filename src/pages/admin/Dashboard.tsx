@@ -49,6 +49,11 @@ const AdminDashboard = () => {
   const [filter, setFilter] = useState<OrderStatus | "todos">("todos");
   const [showCreate, setShowCreate] = useState(false);
 
+  const markAsPaid = async (orderId: string) => {
+    const { error } = await supabase.from("orders").update({ payment_status: "cobrado" } as any).eq("id", orderId);
+    if (error) { toast.error("Error al marcar como cobrado"); } else { toast.success("Pedido cobrado"); }
+  };
+
   const changeStatus = async (orderId: string, newStatus: OrderStatus) => {
     const { error } = await supabase
       .from("orders")
