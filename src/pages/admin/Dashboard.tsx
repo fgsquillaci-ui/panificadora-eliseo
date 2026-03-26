@@ -159,6 +159,11 @@ const AdminDashboard = () => {
                     resellerName={order.reseller_name}
                     actions={
                       <div className="flex gap-1.5 flex-wrap">
+                        {(order as any).payment_status !== "cobrado" && (
+                          <Button size="sm" variant="outline" onClick={() => markAsPaid(order.id)} className="gap-1 font-body text-xs">
+                            <DollarSign className="w-3.5 h-3.5" /> Cobrar
+                          </Button>
+                        )}
                         {prevStatusAction[order.status] && (
                           <Button
                             size="sm"
