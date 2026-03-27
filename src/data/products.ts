@@ -5,6 +5,8 @@ export interface Product {
   price: number;
   wholesalePrice?: number;
   intermediatePrice?: number;
+  minQtyMidTier?: number;
+  minQtyWholesale?: number;
   unit?: string;
   category: "panes" | "especiales" | "tortilleria";
   emoji: string;

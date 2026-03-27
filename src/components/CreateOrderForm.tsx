@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Plus, Minus, ShoppingCart, Loader2, ArrowLeft, CheckCircle } from "lucide-react";
 import { logOrderAction, logError } from "@/lib/orderHistory";
-import { getUnitPrice, type PriceType } from "@/lib/pricing";
+import { getUnitPrice, getPricingTier, type PriceType } from "@/lib/pricing";
 
 interface CartItem {
   productId: string;
@@ -161,6 +161,8 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
     });
 
     const items = cart.map((i) => {
+      const product = products?.find((p) => p.id === i.productId);
+      const tier = product ? getPricingTier(product, i.quantity, customerPriceType) : "minorista";
       const unitCost = costMap[i.productId] || 0;
       const marginPct = i.price > 0 ? ((i.price - unitCost) / i.price) * 100 : 0;
       return {
@@ -172,6 +174,7 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
         product_id: i.productId,
         cost_snapshot: unitCost,
         margin_snapshot: Math.round(marginPct * 10) / 10,
+        pricing_tier_applied: tier,
       };
     });
 
@@ -275,7 +278,10 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {(products || []).map((p) => {
             const inCart = cart.find((i) => i.productId === p.id);
-            const displayPrice = getUnitPrice(p, inCart?.quantity ?? 1, customerPriceType);
+            const qty = inCart?.quantity ?? 1;
+            const displayPrice = getUnitPrice(p, qty, customerPriceType);
+            const tier = getPricingTier(p, qty, customerPriceType);
+            const tierLabel = tier === "mayorista" ? "💰 Mayorista" : tier === "intermedio" ? "📦 Intermedio" : null;
             return (
               <button
                 key={p.id}
@@ -289,6 +295,9 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
                 <p className="font-body text-[10px] text-muted-foreground">${displayPrice.toLocaleString("es-AR")}</p>
                 {inCart && (
                   <p className="font-body text-[10px] text-primary font-semibold">×{inCart.quantity}</p>
+                )}
+                {inCart && tierLabel && (
+                  <p className="font-body text-[9px] font-semibold text-accent-foreground bg-accent rounded px-1 mt-0.5 inline-block">{tierLabel}</p>
                 )}
               </button>
             );
