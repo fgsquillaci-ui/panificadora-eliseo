@@ -161,6 +161,8 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
     });
 
     const items = cart.map((i) => {
+      const product = products?.find((p) => p.id === i.productId);
+      const tier = product ? getPricingTier(product, i.quantity, customerPriceType) : "minorista";
       const unitCost = costMap[i.productId] || 0;
       const marginPct = i.price > 0 ? ((i.price - unitCost) / i.price) * 100 : 0;
       return {
@@ -172,6 +174,7 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
         product_id: i.productId,
         cost_snapshot: unitCost,
         margin_snapshot: Math.round(marginPct * 10) / 10,
+        pricing_tier_applied: tier,
       };
     });
 
