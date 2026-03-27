@@ -231,6 +231,7 @@ export type Database = {
           id: string
           margin_snapshot: number | null
           order_id: string
+          pricing_tier_applied: string | null
           product_id: string | null
           product_name: string
           quantity: number
@@ -242,6 +243,7 @@ export type Database = {
           id?: string
           margin_snapshot?: number | null
           order_id: string
+          pricing_tier_applied?: string | null
           product_id?: string | null
           product_name: string
           quantity?: number
@@ -253,6 +255,7 @@ export type Database = {
           id?: string
           margin_snapshot?: number | null
           order_id?: string
+          pricing_tier_applied?: string | null
           product_id?: string | null
           product_name?: string
           quantity?: number
@@ -346,6 +349,8 @@ export type Database = {
           id: string
           intermediate_price: number | null
           last_cost_sync_at: string | null
+          min_qty_mid_tier: number | null
+          min_qty_wholesale: number | null
           name: string
           retail_price: number | null
           target_margin: number | null
@@ -360,6 +365,8 @@ export type Database = {
           id?: string
           intermediate_price?: number | null
           last_cost_sync_at?: string | null
+          min_qty_mid_tier?: number | null
+          min_qty_wholesale?: number | null
           name: string
           retail_price?: number | null
           target_margin?: number | null
@@ -374,6 +381,8 @@ export type Database = {
           id?: string
           intermediate_price?: number | null
           last_cost_sync_at?: string | null
+          min_qty_mid_tier?: number | null
+          min_qty_wholesale?: number | null
           name?: string
           retail_price?: number | null
           target_margin?: number | null
