@@ -278,7 +278,10 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {(products || []).map((p) => {
             const inCart = cart.find((i) => i.productId === p.id);
-            const displayPrice = getUnitPrice(p, inCart?.quantity ?? 1, customerPriceType);
+            const qty = inCart?.quantity ?? 1;
+            const displayPrice = getUnitPrice(p, qty, customerPriceType);
+            const tier = getPricingTier(p, qty, customerPriceType);
+            const tierLabel = tier === "mayorista" ? "💰 Mayorista" : tier === "intermedio" ? "📦 Intermedio" : null;
             return (
               <button
                 key={p.id}
@@ -292,6 +295,9 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
                 <p className="font-body text-[10px] text-muted-foreground">${displayPrice.toLocaleString("es-AR")}</p>
                 {inCart && (
                   <p className="font-body text-[10px] text-primary font-semibold">×{inCart.quantity}</p>
+                )}
+                {inCart && tierLabel && (
+                  <p className="font-body text-[9px] font-semibold text-accent-foreground bg-accent rounded px-1 mt-0.5 inline-block">{tierLabel}</p>
                 )}
               </button>
             );
