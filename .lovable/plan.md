@@ -1,69 +1,55 @@
 
 
-## Pricing por cantidad con 3 niveles — Plan
+## Pantalla de Administracion de Precios — Plan
 
-### Situacion actual
+### Objetivo
 
-- `getUnitPrice` ya soporta 3 tipos de cliente (`minorista`, `intermedio`, `mayorista`) pero la logica por **cantidad** solo distingue 2 niveles: < 10 = retail, >= 10 = wholesale.
-- La DB ya tiene `min_qty_mid_tier` (default 1) y `min_qty_wholesale` (default 10) en `products` (migracion pendiente del plan anterior). Tambien `intermediate_price`.
-- El tipo `Product` en `data/products.ts` no incluye `minQtyMidTier` ni `minQtyWholesale`.
-- `order_items` ya tiene `pricing_tier_applied` (pendiente de la migracion anterior).
+Nueva pagina `/admin/productos` donde el admin puede ver y editar los 3 precios y 2 umbrales de cada producto en una tabla editable.
 
-### Cambios
+### Implementacion
 
-**1. Migracion SQL** — agregar columnas si no existen
+**1. Nueva pagina `src/pages/admin/Products.tsx`**
+
+Tabla con todos los productos mostrando:
+- Nombre y categoria
+- Precio Minorista (`retail_price`) — editable inline
+- Precio Intermedio (`intermediate_price`) — editable inline
+- Precio Mayorista (`wholesale_price`) — editable inline
+- Cant. min Intermedio (`min_qty_mid_tier`) — editable inline
+- Cant. min Mayorista (`min_qty_wholesale`) — editable inline
+- Boton "Guardar" por fila
+
+Requiere RLS: actualmente `products` solo tiene SELECT publico. Se necesita agregar policy para que admins puedan UPDATE.
+
+**2. Migracion SQL**
 
 ```sql
-ALTER TABLE products ADD COLUMN IF NOT EXISTS min_qty_mid_tier integer DEFAULT 1;
-ALTER TABLE products ADD COLUMN IF NOT EXISTS min_qty_wholesale integer DEFAULT 10;
-ALTER TABLE order_items ADD COLUMN IF NOT EXISTS pricing_tier_applied text;
+CREATE POLICY "Admins can manage products" ON products
+FOR ALL TO authenticated
+USING (has_role(auth.uid(), 'admin'))
+WITH CHECK (has_role(auth.uid(), 'admin'));
 ```
 
-**2. Tipo `Product`** — agregar campos en `src/data/products.ts`
+**3. Ruta en `App.tsx`**
 
-Agregar `minQtyMidTier?: number` y `minQtyWholesale?: number` a la interfaz.
+Agregar `/admin/productos` con `ProtectedRoute allowedRoles={["admin"]}`.
 
-**3. `useProducts.ts`** — mapear nuevos campos desde DB
+**4. Nav en `DashboardLayout.tsx`**
 
-Mapear `min_qty_mid_tier` y `min_qty_wholesale` del resultado de Supabase.
-
-**4. `getUnitPrice` en `src/lib/pricing.ts`** — logica de 3 niveles por cantidad
-
-Nueva logica para clientes **minorista** (los mayoristas e intermedios siguen igual — siempre reciben su precio fijo):
-
-```text
-Para minorista:
-  SI qty >= product.minQtyWholesale → wholesalePrice
-  SI qty >= product.minQtyMidTier → intermediatePrice (o autocalculado)
-  SINO → price (retail)
-```
-
-Auto-calculo de `intermediatePrice` cuando falta: `Math.round((retail + wholesale) / 2)`.
-
-Retornar tambien el tier aplicado como segundo valor (o agregar funcion `getPricingTier`).
-
-**5. `CreateOrderForm.tsx`** — guardar `pricing_tier_applied`
-
-Al insertar `order_items`, incluir el tier aplicado (`minorista`, `intermedio`, `mayorista`).
-
-**6. UI de productos en CreateOrderForm** — mostrar tier
-
-Debajo del precio, mostrar badge con el nivel aplicado cuando qty > 1 y el tier no es minorista.
+Agregar item "Productos" con icono `Tag` entre "Recetas" y el separador de revendedor.
 
 ### Archivos
 
 | Archivo | Cambio |
 |---------|--------|
-| Migracion SQL | 3 columnas IF NOT EXISTS |
-| `src/data/products.ts` | Agregar `minQtyMidTier`, `minQtyWholesale` a interfaz |
-| `src/hooks/useProducts.ts` | Mapear campos nuevos |
-| `src/lib/pricing.ts` | Logica 3 niveles por cantidad + auto-calculo mid + export `getPricingTier` |
-| `src/components/CreateOrderForm.tsx` | Guardar `pricing_tier_applied`, mostrar badge de tier |
+| Migracion SQL | RLS admin para INSERT/UPDATE/DELETE en products |
+| `src/pages/admin/Products.tsx` | Nueva pagina — tabla editable de precios |
+| `src/App.tsx` | Ruta `/admin/productos` |
+| `src/components/DashboardLayout.tsx` | Nav item "Productos" |
 
 ### Lo que NO se modifica
 
-- Pedidos historicos
-- Finanzas / OwnerDashboard
-- Logica de clientes mayoristas/intermedios (siguen con precio fijo)
-- CustomerPicker, delivery, edge functions
+- Logica de pricing (`getUnitPrice`)
+- CreateOrderForm, OwnerDashboard
+- Estructura de la tabla products (ya tiene todos los campos)
 
