@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Plus, Minus, ShoppingCart, Loader2, ArrowLeft, CheckCircle } from "lucide-react";
 import { logOrderAction, logError } from "@/lib/orderHistory";
-import { getUnitPrice, type PriceType } from "@/lib/pricing";
+import { getUnitPrice, getPricingTier, type PriceType } from "@/lib/pricing";
 
 interface CartItem {
   productId: string;
