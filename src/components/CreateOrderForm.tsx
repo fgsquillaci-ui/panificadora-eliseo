@@ -127,6 +127,44 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
     if (!user || !validateOrder()) return;
 
     setSaving(true);
+
+    // Fetch recipes + ingredient costs for snapshots BEFORE creating order
+    const { data: recipes } = await supabase.from("recipes").select("product_id, quantity, ingredients(costo_unitario)");
+    const costMap: Record<string, number> = {};
+    (recipes || []).forEach((r: any) => {
+      const pid = r.product_id;
+      costMap[pid] = (costMap[pid] || 0) + Number(r.quantity) * (r.ingredients?.costo_unitario || 0);
+    });
+
+    // Pre-validate snapshots
+    const itemsWithSnapshots = cart.map((i) => {
+      const product = products?.find((p) => p.id === i.productId);
+      const tier = product ? getPricingTier(product, i.quantity, customerPriceType) : null;
+      const unitCost = costMap[i.productId] || 0;
+      const marginPct = i.price > 0 ? ((i.price - unitCost) / i.price) * 100 : 0;
+      return { ...i, tier, unitCost, marginPct };
+    });
+
+    // Block if critical snapshot data is missing
+    const invalidItems = itemsWithSnapshots.filter((i) => !i.productId || i.price <= 0 || !i.tier);
+    if (invalidItems.length > 0) {
+      toast.error("Hay productos sin datos completos. No se puede guardar el pedido.");
+      logError("Snapshot validation failed — missing critical data", {
+        invalidItems: invalidItems.map((i) => ({ name: i.name, productId: i.productId, price: i.price, tier: i.tier })),
+      });
+      setSaving(false);
+      return;
+    }
+
+    // Warn (don't block) if cost is 0 (product without recipe)
+    const zeroCostItems = itemsWithSnapshots.filter((i) => i.unitCost === 0);
+    if (zeroCostItems.length > 0) {
+      toast.warning(`${zeroCostItems.length} producto(s) sin costo de receta. El margen se guardará como 0.`);
+      logError("Snapshot warning — zero cost items", {
+        items: zeroCostItems.map((i) => i.name),
+      });
+    }
+
     const { data: order, error } = await supabase
       .from("orders")
       .insert({
@@ -152,31 +190,17 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
       return;
     }
 
-    // Fetch recipes + ingredient costs for snapshots
-    const { data: recipes } = await supabase.from("recipes").select("product_id, quantity, ingredients(costo_unitario)");
-    const costMap: Record<string, number> = {};
-    (recipes || []).forEach((r: any) => {
-      const pid = r.product_id;
-      costMap[pid] = (costMap[pid] || 0) + Number(r.quantity) * (r.ingredients?.costo_unitario || 0);
-    });
-
-    const items = cart.map((i) => {
-      const product = products?.find((p) => p.id === i.productId);
-      const tier = product ? getPricingTier(product, i.quantity, customerPriceType) : "minorista";
-      const unitCost = costMap[i.productId] || 0;
-      const marginPct = i.price > 0 ? ((i.price - unitCost) / i.price) * 100 : 0;
-      return {
-        order_id: order.id,
-        product_name: i.name,
-        quantity: i.quantity,
-        unit_price: i.price,
-        total: i.price * i.quantity,
-        product_id: i.productId,
-        cost_snapshot: unitCost,
-        margin_snapshot: Math.round(marginPct * 10) / 10,
-        pricing_tier_applied: tier,
-      };
-    });
+    const items = itemsWithSnapshots.map((i) => ({
+      order_id: order.id,
+      product_name: i.name,
+      quantity: i.quantity,
+      unit_price: i.price,
+      total: i.price * i.quantity,
+      product_id: i.productId,
+      cost_snapshot: i.unitCost,
+      margin_snapshot: Math.round(i.marginPct * 10) / 10,
+      pricing_tier_applied: i.tier,
+    }));
 
     const { error: itemsError } = await supabase.from("order_items").insert(items);
     if (itemsError) {
