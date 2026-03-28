@@ -55,11 +55,17 @@ export function useProductProfitability(period: Period) {
       });
 
       // Aggregate by product
-      const agg: Record<string, { units: number; revenue: number; snapshotCost: number; hasSnapshot: boolean }> = {};
+      const agg: Record<string, { units: number; revenue: number; snapshotCost: number; hasSnapshot: boolean; hasLegacy: boolean }> = {};
       (items || []).forEach((i: any) => {
-        if (!agg[i.product_name]) agg[i.product_name] = { units: 0, revenue: 0, snapshotCost: 0, hasSnapshot: false };
+        if (!agg[i.product_name]) agg[i.product_name] = { units: 0, revenue: 0, snapshotCost: 0, hasSnapshot: false, hasLegacy: false };
         agg[i.product_name].units += i.quantity;
-        agg[i.product_name].revenue += i.total;
+        // Revenue: use total if > 0, fallback to unit_price * quantity for legacy items
+        const itemRevenue = (i.total && i.total > 0) ? i.total : (i.unit_price * i.quantity);
+        agg[i.product_name].revenue += itemRevenue;
+        // Track legacy: item without complete snapshot (total=0 or no cost_snapshot)
+        if (!i.total || i.total === 0 || !i.cost_snapshot || i.cost_snapshot === 0) {
+          agg[i.product_name].hasLegacy = true;
+        }
         // Use snapshot if available, otherwise will fallback to recipe
         if (i.cost_snapshot && i.cost_snapshot > 0) {
           agg[i.product_name].snapshotCost += i.cost_snapshot * i.quantity;
@@ -68,13 +74,14 @@ export function useProductProfitability(period: Period) {
       });
 
       let totalCost = 0;
-      const result: ProductProfit[] = Object.entries(agg).map(([name, { units, revenue, snapshotCost, hasSnapshot }]) => {
+      const result: ProductProfit[] = Object.entries(agg).map(([name, { units, revenue, snapshotCost, hasSnapshot, hasLegacy }]) => {
         const hasRecipe = recipeProducts.has(name);
         // Prefer snapshot cost, fallback to recipe-based cost
         const cost = hasSnapshot ? snapshotCost : (costMap[name] || 0) * units;
         totalCost += cost;
-        const margin = revenue > 0 ? ((revenue - cost) / revenue) * 100 : 0;
-        return { product_name: name, units_sold: units, revenue, cost, margin: (hasRecipe || hasSnapshot) ? margin : -1, hasRecipe: hasRecipe || hasSnapshot };
+        const hasCostData = hasRecipe || hasSnapshot;
+        const margin = (revenue > 0 && hasCostData) ? ((revenue - cost) / revenue) * 100 : -1;
+        return { product_name: name, units_sold: units, revenue, cost, margin, hasRecipe: hasCostData, hasLegacyData: hasLegacy };
       }).sort((a, b) => b.revenue - a.revenue);
 
       setData(result);
