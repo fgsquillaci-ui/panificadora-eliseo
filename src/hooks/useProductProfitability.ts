@@ -10,6 +10,7 @@ export interface ProductProfit {
   cost: number;
   margin: number;
   hasRecipe: boolean;
+  hasLegacyData: boolean;
 }
 
 function getPeriodStart(period: Period): string {
