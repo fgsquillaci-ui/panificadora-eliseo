@@ -1,56 +1,55 @@
 
 
-## Snapshots obligatorios en pedidos nuevos — Plan
+## Corrección de finanzas: snapshots como fuente prioritaria
 
-### Estado actual
+### Problema detectado
 
-Los snapshots **ya están implementados** en `CreateOrderForm.tsx`:
+En `useProductProfitability.ts`, el revenue por producto usa `order_items.total`, que para pedidos antiguos puede ser 0 (valor default de la columna). Esto genera ingresos artificialmente bajos y márgenes absurdamente negativos. Los costos via snapshot son correctos pero el ingreso está corrupto por datos legacy.
 
-| Campo solicitado | Columna DB existente | Ya se guarda | Estado |
-|---|---|---|---|
-| `unit_price_at_sale` | `unit_price` | Sí (línea 172) | ✅ Funciona |
-| `total_price` | `total` | Sí (línea 173, `unit_price * quantity`) | ✅ Funciona |
-| `unit_cost_at_sale` | `cost_snapshot` | Sí (línea 175, desde recetas) | ✅ Funciona |
-| `margin_at_sale` | `margin_snapshot` | Sí (línea 176, calculado) | ✅ Funciona |
-| `pricing_tier_applied` | `pricing_tier_applied` | Sí (línea 177) | ✅ Funciona |
+### Cambios
 
-### Lo que falta
+**1. `src/hooks/useProductProfitability.ts`** — Corregir fuente de ingresos y separar legacy
 
-1. **Validación de completitud**: Si `cost_snapshot` es 0 (producto sin receta), el pedido se guarda igual sin advertencia. Debería al menos mostrar un warning.
+- Al agregar items, calcular revenue como: `i.total > 0 ? i.total : i.unit_price * i.quantity` (fallback para items legacy donde total era 0 pero unit_price sí existe)
+- Trackear por producto cuántos items son legacy (sin snapshot completo) vs nuevos
+- En el resultado, agregar flag `hasLegacyData` para indicar datos mixtos
+- Para items sin cost_snapshot Y sin receta: margen = -1, label "Sin costo"
+- Para items con cost_snapshot = 0 pero con receta: usar fallback a receta
 
-2. **Error controlado si faltan datos**: El PRD pide "si falta alguno de estos datos, mostrar error controlado y evitar guardar datos incompletos". Actualmente no hay validación de que los snapshots estén completos antes de insertar.
+**2. `src/hooks/useProductProfitability.ts`** — Interfaz actualizada
 
-### Cambios mínimos necesarios
+```typescript
+export interface ProductProfit {
+  product_name: string;
+  units_sold: number;
+  revenue: number;
+  cost: number;
+  margin: number;
+  hasRecipe: boolean;
+  hasLegacyData: boolean; // nuevo: indica datos sin snapshot
+}
+```
 
-**1. `CreateOrderForm.tsx`** — Agregar validación pre-insert de snapshots
+**3. `src/pages/admin/OwnerDashboard.tsx`** — UI de rentabilidad
 
-Antes de insertar `order_items`, verificar que cada item tenga:
-- `unit_price > 0`
-- `product_id` presente
-- `pricing_tier_applied` presente
+- Mostrar indicador visual cuando un producto tiene `hasLegacyData: true` (ícono de alerta con tooltip "Incluye datos históricos sin snapshot")
+- Para productos sin costo: mostrar "Sin costo" en vez de "—" y "Sin receta" en margen (ya funciona, solo ajustar label)
 
-Si `cost_snapshot === 0`, mostrar **warning** (no bloquear — un producto puede no tener receta aún) pero loguear.
+**4. `src/hooks/useFinancialData.ts`** — Sin cambios
 
-Si `unit_price === 0` o `product_id` falta, **bloquear** con error y no guardar.
-
-**2. Valores de tier**: Mapear los valores actuales (`minorista`, `intermedio`, `mayorista`) a los solicitados (`retail`, `mid_tier`, `wholesale`) o mantener los existentes por consistencia con datos históricos.
-
-> Recomendación: **mantener los valores en español** (`minorista`, `intermedio`, `mayorista`) porque ya hay pedidos guardados con esos valores. Cambiarlos crearía inconsistencia.
+El hook de ingresos totales ya usa `orders.total` que es correcto (se guarda al crear pedido). No necesita ajuste.
 
 ### Archivos
 
 | Archivo | Cambio |
-|---|---|
-| `src/components/CreateOrderForm.tsx` | Validación de snapshots completos antes de insert + warning si cost=0 |
+|---------|--------|
+| `src/hooks/useProductProfitability.ts` | Fallback revenue, flag legacy, mejor lógica de cost |
+| `src/pages/admin/OwnerDashboard.tsx` | Indicador visual de datos legacy en tabla |
 
 ### Lo que NO se modifica
 
-- Estructura de DB (ya tiene todas las columnas)
-- Pedidos históricos
-- Lógica de pricing (`getUnitPrice`, `getPricingTier`)
-- Finanzas, recetas, ingredientes
-
-### Resumen
-
-El sistema ya guarda los 5 snapshots solicitados. Solo falta agregar validación estricta para garantizar que no se guarden items incompletos, y un warning visible cuando un producto no tiene costo calculable.
+- `useFinancialData.ts` (revenue total ya es correcto)
+- `CreateOrderForm.tsx` (snapshots ya se guardan bien)
+- Pedidos históricos en DB
+- Pricing, recetas, ingredientes
 
