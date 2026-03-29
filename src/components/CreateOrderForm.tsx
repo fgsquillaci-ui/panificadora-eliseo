@@ -165,50 +165,42 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
       });
     }
 
-    const { data: order, error } = await supabase
-      .from("orders")
-      .insert({
+    // Build items payload for edge function
+    const items = itemsWithSnapshots.map((i) => ({
+      product_id: i.productId,
+      product_name: i.name,
+      quantity: i.quantity,
+      unit_price: i.price,
+      total: i.price * i.quantity,
+      cost_snapshot: i.unitCost,
+      margin_snapshot: Math.round(i.marginPct * 10) / 10,
+      pricing_tier_applied: i.tier,
+    }));
+
+    // Call atomic edge function
+    const { data: result, error } = await supabase.functions.invoke("create-order", {
+      body: {
         customer_name: selectedCustomer!.name,
         customer_phone: selectedCustomer!.phone || null,
         customer_id: selectedCustomer!.id,
         address: address.trim() || null,
         delivery_type: address.trim() ? "delivery" : "retiro",
         total,
-        status: "pendiente" as any,
+        status: "pendiente",
         user_id: user.id,
         created_by: createdBy,
         reseller_name: resellerName,
         payment_method: paymentMethod,
-      } as any)
-      .select("id")
-      .single();
+        items,
+      },
+    });
 
-    if (error || !order) {
-      toast.error("Error al crear pedido");
-      logError("Order creation failed", { error, customer: selectedCustomer?.name });
-      setSaving(false);
-      return;
-    }
-
-    const items = itemsWithSnapshots.map((i) => ({
-      order_id: order.id,
-      product_name: i.name,
-      quantity: i.quantity,
-      unit_price: i.price,
-      total: i.price * i.quantity,
-      product_id: i.productId,
-      cost_snapshot: i.unitCost,
-      margin_snapshot: Math.round(i.marginPct * 10) / 10,
-      pricing_tier_applied: i.tier,
-    }));
-
-    const { error: itemsError } = await supabase.from("order_items").insert(items);
-    if (itemsError) {
-      toast.error("Error al guardar productos del pedido");
-      logError("Order items insert failed", { error: itemsError, orderId: order.id });
+    if (error || !result?.id) {
+      const errorMsg = result?.error || error?.message || "Error desconocido";
+      toast.error(`Error al crear pedido: ${errorMsg}`);
+      logError("Atomic order creation failed", { error: errorMsg, customer: selectedCustomer?.name });
     } else {
       toast.success("¡Pedido creado!");
-      logOrderAction(order.id, "created", null, `total:${total}`);
       onSuccess();
     }
     setSaving(false);
