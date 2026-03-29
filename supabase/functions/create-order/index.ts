@@ -112,11 +112,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Validate total matches sum of items
-    const calculatedTotal = body.items.reduce((sum, i) => sum + i.total, 0);
-    if (calculatedTotal !== body.total) {
+    // Validate total matches sum of items (compare rounded integers)
+    const calculatedTotal = Math.round(body.items.reduce((sum, i) => sum + i.total, 0));
+    const receivedTotal = Math.round(body.total);
+    if (calculatedTotal !== receivedTotal) {
       return new Response(
-        JSON.stringify({ error: "Total no coincide con la suma de items", expected: calculatedTotal, received: body.total }),
+        JSON.stringify({ error: "Total no coincide con la suma de items", expected: calculatedTotal, received: receivedTotal }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -148,7 +149,7 @@ Deno.serve(async (req) => {
             ${body.customer_id},
             ${body.address},
             ${body.delivery_type},
-            ${body.total},
+            ${Math.round(body.total)},
             ${body.status || "pendiente"},
             ${body.user_id},
             ${body.created_by},
@@ -160,7 +161,7 @@ Deno.serve(async (req) => {
 
         const orderId = order.id;
 
-        // Insert all items
+        // Insert all items (round monetary values to integer for DB)
         for (const item of body.items) {
           await tx`
             INSERT INTO public.order_items (
@@ -172,9 +173,9 @@ Deno.serve(async (req) => {
               ${item.product_id},
               ${item.product_name},
               ${item.quantity},
-              ${item.unit_price},
-              ${item.total},
-              ${item.cost_snapshot},
+              ${Math.round(item.unit_price)},
+              ${Math.round(item.total)},
+              ${item.cost_snapshot != null ? Math.round(item.cost_snapshot) : null},
               ${item.margin_snapshot},
               ${item.pricing_tier_applied}
             )
