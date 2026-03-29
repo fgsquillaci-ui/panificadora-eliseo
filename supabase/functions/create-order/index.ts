@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
 
         const orderId = order.id;
 
-        // Insert all items
+        // Insert all items (round monetary values to integer for DB)
         for (const item of body.items) {
           await tx`
             INSERT INTO public.order_items (
@@ -172,9 +172,9 @@ Deno.serve(async (req) => {
               ${item.product_id},
               ${item.product_name},
               ${item.quantity},
-              ${item.unit_price},
-              ${item.total},
-              ${item.cost_snapshot},
+              ${Math.round(item.unit_price)},
+              ${Math.round(item.total)},
+              ${item.cost_snapshot != null ? Math.round(item.cost_snapshot) : null},
               ${item.margin_snapshot},
               ${item.pricing_tier_applied}
             )
