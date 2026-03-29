@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, Minus, ShoppingCart, Loader2, ArrowLeft, CheckCircle } from "lucide-react";
-import { logOrderAction, logError } from "@/lib/orderHistory";
+import { logError } from "@/lib/orderHistory";
 import { getUnitPrice, getPricingTier, type PriceType } from "@/lib/pricing";
 
 interface CartItem {
