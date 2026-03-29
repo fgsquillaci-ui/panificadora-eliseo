@@ -1,55 +1,73 @@
 
 
-## Corrección de finanzas: snapshots como fuente prioritaria
+## Corrección Integral — Plan de Implementación
 
-### Problema detectado
+### Diagnóstico real del sistema actual
 
-En `useProductProfitability.ts`, el revenue por producto usa `order_items.total`, que para pedidos antiguos puede ser 0 (valor default de la columna). Esto genera ingresos artificialmente bajos y márgenes absurdamente negativos. Los costos via snapshot son correctos pero el ingreso está corrupto por datos legacy.
+| Issue | Estado | Severidad |
+|-------|--------|-----------|
+| Order creation uses `as any` — masks type errors | Confirmado | Alta |
+| No rollback si items fallan (order queda huérfano) | Confirmado | Alta |
+| Revenue en profitability | Ya corregido (fallback total → unit_price*qty) | ✅ OK |
+| Snapshots en order_items | Ya implementado (unit_price, total, cost_snapshot, margin_snapshot, pricing_tier_applied) | ✅ OK |
+| Finanzas usa orders.total (no products) | Ya correcto en useFinancialData | ✅ OK |
+| Costo receta como unitario sin rendimiento | No hay campo `rendimiento` — receta asume 1 unidad | Media |
 
-### Cambios
+### Cambios necesarios
 
-**1. `src/hooks/useProductProfitability.ts`** — Corregir fuente de ingresos y separar legacy
+**1. Edge function `create-order` — Transacción atómica**
 
-- Al agregar items, calcular revenue como: `i.total > 0 ? i.total : i.unit_price * i.quantity` (fallback para items legacy donde total era 0 pero unit_price sí existe)
-- Trackear por producto cuántos items son legacy (sin snapshot completo) vs nuevos
-- En el resultado, agregar flag `hasLegacyData` para indicar datos mixtos
-- Para items sin cost_snapshot Y sin receta: margen = -1, label "Sin costo"
-- Para items con cost_snapshot = 0 pero con receta: usar fallback a receta
+Nueva edge function que recibe el pedido completo y ejecuta en una transacción SQL:
 
-**2. `src/hooks/useProductProfitability.ts`** — Interfaz actualizada
-
-```typescript
-export interface ProductProfit {
-  product_name: string;
-  units_sold: number;
-  revenue: number;
-  cost: number;
-  margin: number;
-  hasRecipe: boolean;
-  hasLegacyData: boolean; // nuevo: indica datos sin snapshot
-}
+```text
+BEGIN
+  INSERT orders → get order_id
+  INSERT order_items (con snapshots)
+  UPDATE orders SET total = SUM(items.total)
+  COMMIT
+  
+  Si falla → ROLLBACK automático
 ```
 
-**3. `src/pages/admin/OwnerDashboard.tsx`** — UI de rentabilidad
+Esto elimina el problema de orders huérfanos y el error intermitente de items.
 
-- Mostrar indicador visual cuando un producto tiene `hasLegacyData: true` (ícono de alerta con tooltip "Incluye datos históricos sin snapshot")
-- Para productos sin costo: mostrar "Sin costo" en vez de "—" y "Sin receta" en margen (ya funciona, solo ajustar label)
+**2. `CreateOrderForm.tsx` — Llamar edge function**
 
-**4. `src/hooks/useFinancialData.ts`** — Sin cambios
+Reemplazar las 2 llamadas separadas a Supabase (insert order + insert items) por una sola llamada a la edge function. Eliminar todos los `as any`.
 
-El hook de ingresos totales ya usa `orders.total` que es correcto (se guarda al crear pedido). No necesita ajuste.
+El cálculo de snapshots (cost, margin, tier) se mantiene en frontend porque necesita datos de recetas y pricing que ya están cargados.
+
+**3. `useProductProfitability.ts` — Clarificar costo**
+
+El costo de receta (`costMap`) ya se calcula correctamente como suma de (cantidad_ingrediente × costo_unitario_ingrediente) por producto. Esto ES el costo unitario si la receta representa 1 unidad del producto (que es el modelo actual).
+
+No agregar `rendimiento` ahora — sería una feature nueva que requiere migración y UI. El sistema actual es correcto bajo el supuesto de receta = 1 unidad.
+
+**4. Productos sin receta**
+
+Ya funciona: `margin = -1` se muestra como "No calculable" en el dashboard. Sin cambios.
 
 ### Archivos
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/hooks/useProductProfitability.ts` | Fallback revenue, flag legacy, mejor lógica de cost |
-| `src/pages/admin/OwnerDashboard.tsx` | Indicador visual de datos legacy en tabla |
+| `supabase/functions/create-order/index.ts` | Nueva edge function — transacción atómica |
+| `src/components/CreateOrderForm.tsx` | Llamar edge function, eliminar `as any`, simplificar flujo |
+| `supabase/config.toml` | Config para nueva function (verify_jwt = false ya es default) |
 
 ### Lo que NO se modifica
 
-- `useFinancialData.ts` (revenue total ya es correcto)
-- `CreateOrderForm.tsx` (snapshots ya se guardan bien)
-- Pedidos históricos en DB
-- Pricing, recetas, ingredientes
+- `useProductProfitability.ts` (revenue y cost ya están corregidos)
+- `useFinancialData.ts` (revenue total ya usa orders.total)
+- `pricing.ts` (lógica de tiers correcta)
+- Estructura de tablas (ya tiene todos los campos necesarios)
+- Pedidos históricos
+- Dashboards de delivery, revendedor
+
+### Resultado
+
+- Pedidos se crean atómicamente (sin orders huérfanos)
+- Snapshots obligatorios validados server-side
+- Sin `as any` en el flujo de creación
+- Finanzas sin cambios (ya corregidas)
 
