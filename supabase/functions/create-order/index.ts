@@ -112,11 +112,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Validate total matches sum of items
-    const calculatedTotal = body.items.reduce((sum, i) => sum + i.total, 0);
-    if (calculatedTotal !== body.total) {
+    // Validate total matches sum of items (compare rounded integers)
+    const calculatedTotal = Math.round(body.items.reduce((sum, i) => sum + i.total, 0));
+    const receivedTotal = Math.round(body.total);
+    if (calculatedTotal !== receivedTotal) {
       return new Response(
-        JSON.stringify({ error: "Total no coincide con la suma de items", expected: calculatedTotal, received: body.total }),
+        JSON.stringify({ error: "Total no coincide con la suma de items", expected: calculatedTotal, received: receivedTotal }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
