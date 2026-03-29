@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
             ${body.customer_id},
             ${body.address},
             ${body.delivery_type},
-            ${body.total},
+            ${Math.round(body.total)},
             ${body.status || "pendiente"},
             ${body.user_id},
             ${body.created_by},
