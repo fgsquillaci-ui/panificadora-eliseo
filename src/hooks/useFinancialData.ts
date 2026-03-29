@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfDay, startOfWeek, startOfMonth, format } from "date-fns";
 
@@ -15,7 +15,6 @@ function getPeriodStart(period: Period): string {
 
 export function useFinancialData(period: Period) {
   const [revenue, setRevenue] = useState(0);
-  const [productCosts, setProductCosts] = useState(0);
   const [expenses, setExpenses] = useState(0);
   const [cashMovements, setCashMovements] = useState<any[]>([]);
   const [expensesList, setExpensesList] = useState<any[]>([]);
@@ -26,43 +25,16 @@ export function useFinancialData(period: Period) {
     const start = getPeriodStart(period);
     const startDate = format(new Date(start), "yyyy-MM-dd");
 
-    // 1. Get delivered order IDs for period
-    const { data: orders } = await supabase
-      .from("orders")
-      .select("id")
-      .eq("status", "entregado")
-      .gte("created_at", start);
-
-    const orderIds = (orders || []).map(o => o.id);
-
-    let totalRevenue = 0;
-    let totalProductCosts = 0;
-
-    if (orderIds.length > 0) {
-      // 2. Revenue & costs from order_items (SSOT)
-      const { data: items } = await supabase
-        .from("order_items")
-        .select("total, quantity, cost_snapshot")
-        .in("order_id", orderIds);
-
-      (items || []).forEach((item) => {
-        totalRevenue += item.total || 0;
-        if (item.cost_snapshot != null && item.cost_snapshot > 0) {
-          totalProductCosts += item.cost_snapshot * item.quantity;
-        }
-      });
-    }
-
-    // 3. Expenses & cash (unchanged)
-    const [expensesRes, cashRes] = await Promise.all([
+    const [ordersRes, expensesRes, cashRes] = await Promise.all([
+      supabase.from("orders").select("total").eq("status", "entregado").gte("created_at", start),
       supabase.from("expenses").select("*").gte("date", startDate).order("date", { ascending: false }),
       supabase.from("cash_movements").select("*").gte("date", startDate).order("date", { ascending: false }),
     ]);
 
+    const totalRevenue = (ordersRes.data || []).reduce((sum, o) => sum + (o.total || 0), 0);
     const totalExpenses = (expensesRes.data || []).reduce((sum, e) => sum + (e.amount || 0), 0);
 
     setRevenue(totalRevenue);
-    setProductCosts(totalProductCosts);
     setExpenses(totalExpenses);
     setExpensesList(expensesRes.data || []);
     setCashMovements(cashRes.data || []);
@@ -73,6 +45,7 @@ export function useFinancialData(period: Period) {
     fetchData();
   }, [period]);
 
+  // Realtime subscriptions
   useEffect(() => {
     const ch1 = supabase.channel("fin-expenses").on("postgres_changes", { event: "*", schema: "public", table: "expenses" }, fetchData).subscribe();
     const ch2 = supabase.channel("fin-cash").on("postgres_changes", { event: "*", schema: "public", table: "cash_movements" }, fetchData).subscribe();
@@ -84,5 +57,5 @@ export function useFinancialData(period: Period) {
   const totalCashOut = cashMovements.filter(m => m.type !== "ingreso").reduce((s, m) => s + m.amount, 0);
   const totalWithdrawals = cashMovements.filter(m => m.type === "retiro").reduce((s, m) => s + m.amount, 0);
 
-  return { revenue, productCosts, expenses, expensesList, cashMovements, totalCashIn, totalCashOut, totalWithdrawals, loading, refetch: fetchData };
+  return { revenue, expenses, expensesList, cashMovements, totalCashIn, totalCashOut, totalWithdrawals, loading, refetch: fetchData };
 }
