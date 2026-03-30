@@ -106,6 +106,14 @@ export function useProductProfitability(period: Period, tierFilter: TierFilter =
       });
 
       let totalCost = 0;
+
+      // Validation: warn if cost seems anomalous
+      Object.values(agg).forEach(({ name, revenue, cost }) => {
+        if (cost > revenue * 2 && revenue > 0) {
+          console.warn("Cost scaling anomaly detected", { name, revenue, cost });
+        }
+      });
+
       const result: ProductProfit[] = Object.entries(agg)
         .map(([_, { id, name, units, revenue, cost, hasCost, tierCounts }]) => {
           totalCost += cost;
