@@ -13,7 +13,7 @@ import { usePurchases } from "@/hooks/usePurchases";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Plus, Percent, Wallet, BarChart3, RefreshCw, Tag, AlertCircle, Info } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Plus, Percent, Wallet, BarChart3, RefreshCw, Tag, AlertCircle } from "lucide-react";
 
 const fmt = (cents: number) => `$${(cents / 100).toLocaleString("es-AR", { minimumFractionDigits: 0 })}`;
 
@@ -66,7 +66,7 @@ const OwnerDashboard = () => {
   const available = Math.max(0, profit - totalWithdrawals);
 
   // Alerts
-  const lowMarginProducts = products.filter(p => p.hasRecipe && p.margin < 20 && p.margin >= 0);
+  const lowMarginProducts = products.filter(p => p.hasRecipe && p.margin !== null && p.margin < 20 && p.margin >= 0);
   const highExpenses = revenue > 0 && expenses > revenue * 0.5;
   const noRecipeProducts = pricingData.length === 0 ? [] : [];
   const negativeMarginPricing = pricingData.filter(p => p.currentMargin < 0);
@@ -172,24 +172,12 @@ const OwnerDashboard = () => {
                   <tbody>
                     {products.map(p => (
                       <tr key={p.product_name} className="border-b last:border-0">
-                        <td className="py-2 font-body flex items-center gap-1">
-                          {p.product_name}
-                          {p.hasLegacyData && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Info className="w-3.5 h-3.5 text-amber-500 inline-block" />
-                                </TooltipTrigger>
-                                <TooltipContent><p className="text-xs">Incluye datos históricos sin snapshot</p></TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                        </td>
+                        <td className="py-2 font-body">{p.product_name}</td>
                         <td className="py-2 text-right">{p.units_sold}</td>
                         <td className="py-2 text-right">{fmt(p.revenue)}</td>
                         <td className="py-2 text-right">{p.hasRecipe ? fmt(p.cost) : <span className="text-muted-foreground text-xs">Sin costo</span>}</td>
                         <td className="py-2 text-right">
-                          {p.hasRecipe && p.margin >= 0 ? (
+                          {p.margin !== null ? (
                             <Badge variant={p.margin >= 30 ? "default" : p.margin >= 15 ? "secondary" : "destructive"}>
                               {p.margin.toFixed(1)}%
                             </Badge>

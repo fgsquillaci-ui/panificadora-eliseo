@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfDay, startOfWeek, startOfMonth, format } from "date-fns";
 
@@ -15,6 +15,7 @@ function getPeriodStart(period: Period): string {
 
 export function useFinancialData(period: Period) {
   const [revenue, setRevenue] = useState(0);
+  const [estimatedCost, setEstimatedCost] = useState(0);
   const [expenses, setExpenses] = useState(0);
   const [cashMovements, setCashMovements] = useState<any[]>([]);
   const [expensesList, setExpensesList] = useState<any[]>([]);
@@ -25,16 +26,37 @@ export function useFinancialData(period: Period) {
     const start = getPeriodStart(period);
     const startDate = format(new Date(start), "yyyy-MM-dd");
 
-    const [ordersRes, expensesRes, cashRes] = await Promise.all([
-      supabase.from("orders").select("total").eq("status", "entregado").gte("created_at", start),
+    // Single source: order_items joined with orders, filtered by entregado
+    const [itemsRes, expensesRes, cashRes] = await Promise.all([
+      supabase
+        .from("order_items")
+        .select("total, unit_price, quantity, cost_snapshot, orders!inner(status, created_at)")
+        .eq("orders.status", "entregado" as any)
+        .gte("orders.created_at", start),
       supabase.from("expenses").select("*").gte("date", startDate).order("date", { ascending: false }),
       supabase.from("cash_movements").select("*").gte("date", startDate).order("date", { ascending: false }),
     ]);
 
-    const totalRevenue = (ordersRes.data || []).reduce((sum, o) => sum + (o.total || 0), 0);
-    const totalExpenses = (expensesRes.data || []).reduce((sum, e) => sum + (e.amount || 0), 0);
+    const items = (itemsRes.data || []) as any[];
+
+    // Revenue = SUM of item totals (with data repair for legacy items)
+    let totalRevenue = 0;
+    let totalCost = 0;
+    items.forEach((item) => {
+      const qty = item.quantity ?? 0;
+      const itemTotal = item.total && item.total > 0 ? item.total : (item.unit_price ?? 0) * qty;
+      totalRevenue += itemTotal;
+
+      const costSnap = item.cost_snapshot ?? 0;
+      if (costSnap > 0) {
+        totalCost += costSnap * qty;
+      }
+    });
+
+    const totalExpenses = (expensesRes.data || []).reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
 
     setRevenue(totalRevenue);
+    setEstimatedCost(totalCost);
     setExpenses(totalExpenses);
     setExpensesList(expensesRes.data || []);
     setCashMovements(cashRes.data || []);
@@ -57,5 +79,5 @@ export function useFinancialData(period: Period) {
   const totalCashOut = cashMovements.filter(m => m.type !== "ingreso").reduce((s, m) => s + m.amount, 0);
   const totalWithdrawals = cashMovements.filter(m => m.type === "retiro").reduce((s, m) => s + m.amount, 0);
 
-  return { revenue, expenses, expensesList, cashMovements, totalCashIn, totalCashOut, totalWithdrawals, loading, refetch: fetchData };
+  return { revenue, estimatedCost, expenses, expensesList, cashMovements, totalCashIn, totalCashOut, totalWithdrawals, loading, refetch: fetchData };
 }
