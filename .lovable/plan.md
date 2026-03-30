@@ -1,63 +1,47 @@
 
 
-## Fix Cost Scaling — Normalize cost_snapshot (cents → pesos, no qty multiply)
+## Fix Pricing Panel Cost — Normalize Recipe Cost
 
-### Changes
+### Problem
 
-**1. `src/hooks/useProductProfitability.ts` (lines 97-101)**
+The pricing panel (lines 42-72) calculates cost directly from `recipes × ingredients.costo_unitario`. Since `costo_unitario` is stored in **cents**, the cost is 100x too high after the global `/100` removal from `fmt`. This causes inflated costs, negative margins, and unusable suggested prices.
 
-Replace:
-```typescript
-const costSnap = item.cost_snapshot ?? 0;
-if (costSnap > 0) {
-  agg[pid].cost += costSnap * qty;
-  agg[pid].hasCost = true;
-}
-```
-With:
-```typescript
-const costSnap = item.cost_snapshot ?? 0;
-if (costSnap > 0) {
-  agg[pid].cost += costSnap / 100;
-  agg[pid].hasCost = true;
-}
-```
+### Solution
 
-Add validation after aggregation (before building result array): warn if `cost > revenue * 2`.
+Normalize the recipe-based cost in the pricing panel by dividing by 100, matching the same normalization applied in `useProductProfitability`.
 
-**2. `src/hooks/useFinancialData.ts` (lines 55-58)**
+### Change
+
+**`src/pages/admin/OwnerDashboard.tsx` (line 49)**
 
 Replace:
 ```typescript
-const costSnap = item.cost_snapshot ?? 0;
-if (costSnap > 0) {
-  totalCost += costSnap * qty;
-}
+costMap[r.product_id] = (costMap[r.product_id] || 0) + Number(r.quantity) * (r.ingredients?.costo_unitario || 0);
 ```
 With:
 ```typescript
-const costSnap = item.cost_snapshot ?? 0;
-if (costSnap > 0) {
-  totalCost += costSnap / 100;
-}
+costMap[r.product_id] = (costMap[r.product_id] || 0) + (Number(r.quantity) * (r.ingredients?.costo_unitario || 0)) / 100;
 ```
 
-### What is NOT changed
+### Why not replace with hook data
 
-- Revenue logic (already correct)
-- Margin formula (already correct)
-- `formatCurrency` utility
-- DB, edge functions, order creation
+The pricing panel intentionally uses **live recipe costs** (current ingredient prices) rather than historical `cost_snapshot` from orders. This is correct for pricing decisions — you want to know what a product costs **now**, not what it cost when last sold. The hook uses snapshots for financial reporting; the pricing panel uses live data for price strategy. These are different use cases and should remain separate.
 
 ### Files
 
 | File | Change |
 |------|--------|
-| `src/hooks/useProductProfitability.ts` | `/100` instead of `* qty` for cost_snapshot |
-| `src/hooks/useFinancialData.ts` | `/100` instead of `* qty` for cost_snapshot |
+| `src/pages/admin/OwnerDashboard.tsx` | Add `/100` to recipe cost normalization (line 49) |
+
+### Unchanged
+
+- `useProductProfitability.ts` (already correct)
+- `useFinancialData.ts` (already correct)
+- Revenue, margin formulas, DB, edge functions
 
 ### Expected Result
 
-- Costs display in pesos, proportional to revenue
-- Margins become realistic (no -2000%)
+- Pricing panel costs match real values (e.g., cost $514 not $51,400)
+- Margins become realistic and positive
+- Suggested prices become usable
 
