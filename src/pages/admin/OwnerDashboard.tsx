@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useFinancialData, type Period } from "@/hooks/useFinancialData";
-import { useProductProfitability } from "@/hooks/useProductProfitability";
+import { useProductProfitability, type TierFilter } from "@/hooks/useProductProfitability";
 import { useIngredients } from "@/hooks/useIngredients";
 import { usePurchases } from "@/hooks/usePurchases";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,8 +19,9 @@ const fmt = (cents: number) => `$${(cents / 100).toLocaleString("es-AR", { minim
 
 const OwnerDashboard = () => {
   const [period, setPeriod] = useState<Period>("hoy");
-  const { revenue, expenses, expensesList, cashMovements, totalWithdrawals, loading } = useFinancialData(period);
-  const { products, estimatedCost, loading: profitLoading } = useProductProfitability(period);
+  const [tierFilter, setTierFilter] = useState<TierFilter>(null);
+  const { revenue, expenses, expensesList, cashMovements, totalWithdrawals, loading } = useFinancialData(period, tierFilter);
+  const { products, estimatedCost, loading: profitLoading } = useProductProfitability(period, tierFilter);
   const { ingredients, lowStock, update: updateIngredient } = useIngredients();
   const { purchases: allPurchases } = usePurchases();
 
@@ -35,31 +36,37 @@ const OwnerDashboard = () => {
     fetchPending();
   }, [period]);
 
-  // Product pricing data
+  // Product pricing data — uses recipe cost + real sales unitPrice
   const [pricingData, setPricingData] = useState<any[]>([]);
   useEffect(() => {
     const fetchPricing = async () => {
-      const { data: prods } = await supabase.from("products").select("id, name, retail_price, target_margin");
+      const { data: prods } = await supabase.from("products").select("id, name, target_margin");
       const { data: recipes } = await supabase.from("recipes").select("product_id, quantity, ingredients(costo_unitario)");
       
       const costMap: Record<string, number> = {};
       (recipes || []).forEach((r: any) => {
         costMap[r.product_id] = (costMap[r.product_id] || 0) + Number(r.quantity) * (r.ingredients?.costo_unitario || 0);
       });
+
+      // Build a map of real avg sale price from profitability data
+      const salesPriceMap: Record<string, number | null> = {};
+      products.forEach(p => {
+        salesPriceMap[p.product_id] = p.unitPrice;
+      });
       
       const rows = (prods || []).map((p: any) => {
         const cost = costMap[p.id] || 0;
-        const price = p.retail_price || 0;
+        const realPrice = salesPriceMap[p.id] ?? null;
         const targetMargin = p.target_margin ?? 30;
-        const currentMargin = price > 0 ? ((price - cost) / price) * 100 : 0;
+        const currentMargin = realPrice && realPrice > 0 ? ((realPrice - cost) / realPrice) * 100 : null;
         const suggestedPrice = targetMargin < 100 ? Math.round(cost / (1 - targetMargin / 100)) : cost;
-        return { id: p.id, name: p.name, cost, price, targetMargin, currentMargin, suggestedPrice, hasRecipe: cost > 0 };
+        return { id: p.id, name: p.name, cost, price: realPrice, targetMargin, currentMargin, suggestedPrice, hasRecipe: cost > 0 };
       }).filter((p: any) => p.hasRecipe);
       
       setPricingData(rows);
     };
     fetchPricing();
-  }, [ingredients]);
+  }, [ingredients, products]);
 
   const profit = revenue - estimatedCost - expenses;
   const margin = revenue > 0 ? ((revenue - estimatedCost) / revenue) * 100 : 0;
@@ -68,8 +75,7 @@ const OwnerDashboard = () => {
   // Alerts
   const lowMarginProducts = products.filter(p => p.hasRecipe && p.margin !== null && p.margin < 20 && p.margin >= 0);
   const highExpenses = revenue > 0 && expenses > revenue * 0.5;
-  const noRecipeProducts = pricingData.length === 0 ? [] : [];
-  const negativeMarginPricing = pricingData.filter(p => p.currentMargin < 0);
+  const negativeMarginPricing = pricingData.filter(p => p.currentMargin !== null && p.currentMargin < 0);
 
   // Expense form
   const [expOpen, setExpOpen] = useState(false);
@@ -113,13 +119,28 @@ const OwnerDashboard = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-heading font-bold text-foreground">Panel Financiero</h1>
-          <div className="flex gap-1 bg-secondary rounded-lg p-1">
-            {(["hoy", "semana", "mes"] as Period[]).map(p => (
-              <button key={p} onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 rounded-md text-xs font-body font-medium transition-colors ${period === p ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-                {p.charAt(0).toUpperCase() + p.slice(1)}
-              </button>
-            ))}
+          <div className="flex items-center gap-3">
+            {/* Tier filter */}
+            <Select value={tierFilter ?? "todos"} onValueChange={v => setTierFilter(v === "todos" ? null : v as TierFilter)}>
+              <SelectTrigger className="w-[140px] h-8 text-xs">
+                <SelectValue placeholder="Tipo de venta" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="minorista">Minorista</SelectItem>
+                <SelectItem value="intermedio">Intermedio</SelectItem>
+                <SelectItem value="mayorista">Mayorista</SelectItem>
+              </SelectContent>
+            </Select>
+            {/* Period selector */}
+            <div className="flex gap-1 bg-secondary rounded-lg p-1">
+              {(["hoy", "semana", "mes"] as Period[]).map(p => (
+                <button key={p} onClick={() => setPeriod(p)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-body font-medium transition-colors ${period === p ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -145,7 +166,7 @@ const OwnerDashboard = () => {
               <AlertCard key={i.id} type="destructive" text={`Stock bajo: ${i.name} (${i.stock_actual} ${i.unit})`} />
             ))}
             {lowMarginProducts.map(p => (
-              <AlertCard key={p.product_name} type="warning" text={`Margen bajo: ${p.product_name} (${p.margin.toFixed(1)}%)`} />
+              <AlertCard key={p.product_name} type="warning" text={`Margen bajo: ${p.product_name} (${p.margin!.toFixed(1)}%)`} />
             ))}
             {highExpenses && <AlertCard type="warning" text="Gastos superan el 50% de ingresos" />}
           </div>
@@ -166,15 +187,17 @@ const OwnerDashboard = () => {
                     <th className="py-2 font-medium">Producto</th>
                     <th className="py-2 font-medium text-right">Uds</th>
                     <th className="py-2 font-medium text-right">Ingreso</th>
+                    <th className="py-2 font-medium text-right">Precio prom.</th>
                     <th className="py-2 font-medium text-right">Costo</th>
                     <th className="py-2 font-medium text-right">Margen</th>
                   </tr></thead>
                   <tbody>
                     {products.map(p => (
-                      <tr key={p.product_name} className="border-b last:border-0">
+                      <tr key={p.product_id} className="border-b last:border-0">
                         <td className="py-2 font-body">{p.product_name}</td>
                         <td className="py-2 text-right">{p.units_sold}</td>
                         <td className="py-2 text-right">{fmt(p.revenue)}</td>
+                        <td className="py-2 text-right">{p.unitPrice !== null ? fmt(Math.round(p.unitPrice)) : <span className="text-muted-foreground text-xs">—</span>}</td>
                         <td className="py-2 text-right">{p.hasRecipe ? fmt(p.cost) : <span className="text-muted-foreground text-xs">Sin costo</span>}</td>
                         <td className="py-2 text-right">
                           {p.margin !== null ? (
@@ -204,7 +227,7 @@ const OwnerDashboard = () => {
                   <thead><tr className="border-b text-left text-muted-foreground">
                     <th className="py-2 font-medium">Producto</th>
                     <th className="py-2 font-medium text-right">Costo</th>
-                    <th className="py-2 font-medium text-right">Precio actual</th>
+                    <th className="py-2 font-medium text-right">Precio real</th>
                     <th className="py-2 font-medium text-right">Margen actual</th>
                     <th className="py-2 font-medium text-right">Objetivo</th>
                     <th className="py-2 font-medium text-right">Precio sugerido</th>
@@ -215,16 +238,18 @@ const OwnerDashboard = () => {
                       <tr key={p.id} className="border-b last:border-0">
                         <td className="py-2 font-body">{p.name}</td>
                         <td className="py-2 text-right">{fmt(p.cost)}</td>
-                        <td className="py-2 text-right">{fmt(p.price)}</td>
+                        <td className="py-2 text-right">{p.price !== null ? fmt(Math.round(p.price)) : <span className="text-muted-foreground text-xs">Sin ventas</span>}</td>
                         <td className="py-2 text-right">
-                          <Badge variant={p.currentMargin >= p.targetMargin ? "default" : p.currentMargin >= p.targetMargin - 5 ? "secondary" : "destructive"}>
-                            {p.currentMargin.toFixed(1)}%
-                          </Badge>
+                          {p.currentMargin !== null ? (
+                            <Badge variant={p.currentMargin >= p.targetMargin ? "default" : p.currentMargin >= p.targetMargin - 5 ? "secondary" : "destructive"}>
+                              {p.currentMargin.toFixed(1)}%
+                            </Badge>
+                          ) : <span className="text-muted-foreground text-xs">—</span>}
                         </td>
                         <td className="py-2 text-right text-muted-foreground">{p.targetMargin}%</td>
                         <td className="py-2 text-right font-semibold">{fmt(p.suggestedPrice)}</td>
                         <td className="py-2 text-right">
-                          {Math.abs(p.price - p.suggestedPrice) > 50 && (
+                          {p.price !== null && Math.abs(p.price - p.suggestedPrice) > 50 && (
                             <Button size="sm" variant="outline" onClick={() => applySuggestedPrice(p.id, p.suggestedPrice)}>
                               Aplicar
                             </Button>
