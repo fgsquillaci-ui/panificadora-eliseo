@@ -190,17 +190,22 @@ const OwnerDashboard = () => {
                     <th className="py-2 font-medium">Producto</th>
                     <th className="py-2 font-medium text-right">Uds</th>
                     <th className="py-2 font-medium text-right">Ingreso</th>
-                    <th className="py-2 font-medium text-right">Precio prom.</th>
                     <th className="py-2 font-medium text-right">Costo</th>
                     <th className="py-2 font-medium text-right">Margen</th>
                   </tr></thead>
                   <tbody>
                     {products.map(p => (
                       <tr key={p.product_id} className="border-b last:border-0">
-                        <td className="py-2 font-body">{p.product_name}</td>
+                        <td className="py-2 font-body flex items-center gap-1">
+                          {p.product_name}
+                          {p.priceDeviation && (
+                            <TooltipProvider><Tooltip><TooltipTrigger>
+                              <AlertCircle className="w-3.5 h-3.5 text-yellow-500" />
+                            </TooltipTrigger><TooltipContent><p className="text-xs">Precio aplicado difiere del oficial</p></TooltipContent></Tooltip></TooltipProvider>
+                          )}
+                        </td>
                         <td className="py-2 text-right">{p.units_sold}</td>
                         <td className="py-2 text-right">{fmt(p.revenue)}</td>
-                        <td className="py-2 text-right">{p.unitPrice !== null ? fmt(Math.round(p.unitPrice)) : <span className="text-muted-foreground text-xs">—</span>}</td>
                         <td className="py-2 text-right">{p.hasRecipe ? fmt(p.cost) : <span className="text-muted-foreground text-xs">Sin costo</span>}</td>
                         <td className="py-2 text-right">
                           {p.margin !== null ? (
