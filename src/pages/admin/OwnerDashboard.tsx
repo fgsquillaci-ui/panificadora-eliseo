@@ -66,7 +66,7 @@ const OwnerDashboard = () => {
   const available = Math.max(0, profit - totalWithdrawals);
 
   // Alerts
-  const lowMarginProducts = products.filter(p => p.hasRecipe && p.margin < 20 && p.margin >= 0);
+  const lowMarginProducts = products.filter(p => p.hasRecipe && p.margin !== null && p.margin < 20 && p.margin >= 0);
   const highExpenses = revenue > 0 && expenses > revenue * 0.5;
   const noRecipeProducts = pricingData.length === 0 ? [] : [];
   const negativeMarginPricing = pricingData.filter(p => p.currentMargin < 0);
