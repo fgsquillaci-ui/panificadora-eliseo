@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useIngredients, type Ingredient } from "@/hooks/useIngredients";
 import { usePurchases, type Purchase } from "@/hooks/usePurchases";
 import { Plus, Pencil, Trash2, ShoppingCart, TrendingUp, ArrowLeft } from "lucide-react";
+import { formatCurrency } from "@/utils/currency";
 
 const units = ["kg", "g", "litro", "ml", "unidad"];
-const fmt = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+const fmt = formatCurrency;
 
 const Ingredients = () => {
   const { ingredients, loading, create, update, remove } = useIngredients();

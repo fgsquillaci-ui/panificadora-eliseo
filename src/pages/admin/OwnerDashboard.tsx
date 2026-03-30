@@ -14,8 +14,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Plus, Percent, Wallet, BarChart3, RefreshCw, Tag, AlertCircle } from "lucide-react";
+import { formatCurrency } from "@/utils/currency";
 
-const fmt = (cents: number) => `$${(cents / 100).toLocaleString("es-AR", { minimumFractionDigits: 0 })}`;
+const fmt = formatCurrency;
 
 const OwnerDashboard = () => {
   const [period, setPeriod] = useState<Period>("hoy");

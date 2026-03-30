@@ -9,8 +9,9 @@ import { useRecipes } from "@/hooks/useRecipes";
 import { useIngredients } from "@/hooks/useIngredients";
 import { useProducts } from "@/hooks/useProducts";
 import { Trash2, Plus } from "lucide-react";
+import { formatCurrency } from "@/utils/currency";
 
-const fmt = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+const fmt = formatCurrency;
 
 const Recipes = () => {
   const { data: products = [] } = useProducts();
