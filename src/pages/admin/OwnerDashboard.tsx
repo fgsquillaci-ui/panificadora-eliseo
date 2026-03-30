@@ -235,7 +235,7 @@ const OwnerDashboard = () => {
                   <thead><tr className="border-b text-left text-muted-foreground">
                     <th className="py-2 font-medium">Producto</th>
                     <th className="py-2 font-medium text-right">Costo</th>
-                    <th className="py-2 font-medium text-right">Precio real</th>
+                    <th className="py-2 font-medium text-right">Precio actual</th>
                     <th className="py-2 font-medium text-right">Margen actual</th>
                     <th className="py-2 font-medium text-right">Objetivo</th>
                     <th className="py-2 font-medium text-right">Precio sugerido</th>
