@@ -108,7 +108,8 @@ const OwnerDashboard = () => {
   };
 
   const applySuggestedPrice = async (productId: string, suggestedPrice: number) => {
-    const { error } = await supabase.from("products").update({ retail_price: suggestedPrice, last_cost_sync_at: new Date().toISOString() } as any).eq("id", productId);
+    const priceColumn = tierFilter === "mayorista" ? "wholesale_price" : tierFilter === "intermedio" ? "intermediate_price" : "retail_price";
+    const { error } = await supabase.from("products").update({ [priceColumn]: suggestedPrice, last_cost_sync_at: new Date().toISOString() } as any).eq("id", productId);
     if (error) { toast.error("Error al actualizar precio"); } else {
       toast.success("Precio actualizado");
       setPricingData(prev => prev.map(p => p.id === productId ? { ...p, price: suggestedPrice, currentMargin: p.targetMargin } : p));
