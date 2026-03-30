@@ -46,7 +46,7 @@ const OwnerDashboard = () => {
       
       const costMap: Record<string, number> = {};
       (recipes || []).forEach((r: any) => {
-        costMap[r.product_id] = (costMap[r.product_id] || 0) + Number(r.quantity) * (r.ingredients?.costo_unitario || 0);
+        costMap[r.product_id] = (costMap[r.product_id] || 0) + (Number(r.quantity) * (r.ingredients?.costo_unitario || 0)) / 100;
       });
 
       const rows = (prods || []).map((p: any) => {
