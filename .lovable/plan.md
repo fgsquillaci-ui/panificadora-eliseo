@@ -1,61 +1,63 @@
 
 
-## Fix Currency Formatting — Plan
-
-### Root Cause
-
-Line 18 of `OwnerDashboard.tsx`, line 13 of `Recipes.tsx`, and line 14 of `Ingredients.tsx` all define:
-```typescript
-const fmt = (cents: number) => `$${(cents / 100)...}`;
-```
-This divides all monetary values by 100. Since the DB stores whole pesos (e.g., 2000 = $2,000), all displayed values are 100x too small.
+## Fix Cost Scaling — Normalize cost_snapshot (cents → pesos, no qty multiply)
 
 ### Changes
 
-**1. Create `src/utils/currency.ts`**
+**1. `src/hooks/useProductProfitability.ts` (lines 97-101)**
 
-Shared formatter — no division:
+Replace:
 ```typescript
-export const formatCurrency = (value: number) =>
-  `$${value.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+const costSnap = item.cost_snapshot ?? 0;
+if (costSnap > 0) {
+  agg[pid].cost += costSnap * qty;
+  agg[pid].hasCost = true;
+}
+```
+With:
+```typescript
+const costSnap = item.cost_snapshot ?? 0;
+if (costSnap > 0) {
+  agg[pid].cost += costSnap / 100;
+  agg[pid].hasCost = true;
+}
 ```
 
-**2. `src/pages/admin/OwnerDashboard.tsx`**
+Add validation after aggregation (before building result array): warn if `cost > revenue * 2`.
 
-- Remove local `fmt` (line 18)
-- Import `formatCurrency` from `@/utils/currency`
-- Replace all `fmt(...)` calls with `formatCurrency(...)`
+**2. `src/hooks/useFinancialData.ts` (lines 55-58)**
 
-**3. `src/pages/admin/Recipes.tsx`**
-
-- Remove local `fmt` (line 13)
-- Import and use `formatCurrency`
-
-**4. `src/pages/admin/Ingredients.tsx`**
-
-- Remove local `fmt` (line 14)
-- Import and use `formatCurrency` for all **display** calls (`fmt(costo_unitario)`, `fmt(unit_price)`, `fmt(total_cost)`, `fmt(weightedAvgCost)`)
+Replace:
+```typescript
+const costSnap = item.cost_snapshot ?? 0;
+if (costSnap > 0) {
+  totalCost += costSnap * qty;
+}
+```
+With:
+```typescript
+const costSnap = item.cost_snapshot ?? 0;
+if (costSnap > 0) {
+  totalCost += costSnap / 100;
+}
+```
 
 ### What is NOT changed
 
-- The Ingredients form's `costo_unitario / 100` on edit load (line 32) and `* 100` on save (line 42) — these are paired data transformations, not display formatting. Changing one without the other would corrupt data. This should be addressed separately if needed.
-- No backend, DB, or edge function changes
-- No changes to Cart, ProductCatalog, OrderDetail (these already use `toLocaleString` directly without `/100`)
-- Percentage/margin calculations are untouched
+- Revenue logic (already correct)
+- Margin formula (already correct)
+- `formatCurrency` utility
+- DB, edge functions, order creation
 
 ### Files
 
 | File | Change |
 |------|--------|
-| `src/utils/currency.ts` | New shared formatter |
-| `src/pages/admin/OwnerDashboard.tsx` | Replace `fmt` with `formatCurrency` |
-| `src/pages/admin/Recipes.tsx` | Replace `fmt` with `formatCurrency` |
-| `src/pages/admin/Ingredients.tsx` | Replace `fmt` with `formatCurrency` (display only) |
+| `src/hooks/useProductProfitability.ts` | `/100` instead of `* qty` for cost_snapshot |
+| `src/hooks/useFinancialData.ts` | `/100` instead of `* qty` for cost_snapshot |
 
 ### Expected Result
 
-- 1 Pan de ajo → $2,000 (not $20)
-- 45 Pan de lomo → $31,500 (not $315)
-- Ingredient costs display correctly
-- Recipe costs display correctly
+- Costs display in pesos, proportional to revenue
+- Margins become realistic (no -2000%)
 
