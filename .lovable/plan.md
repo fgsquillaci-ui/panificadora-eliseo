@@ -1,48 +1,61 @@
 
 
-## Financial Refactor — Corrected Plan
+## Financial Refactor — Final Corrected Plan
+
+### Verification of Current Code
+
+| Rule | `useFinancialData` | `useProductProfitability` | Status |
+|------|---|---|---|
+| Filter `entregado` | `.eq("orders.status", "entregado")` | `.eq("orders.status", "entregado")` | ✅ |
+| Revenue null safety | `item.total && item.total > 0 ? item.total : (unit_price ?? 0) * qty` | Same | ✅ |
+| Cost null safety | `(cost_snapshot ?? 0) * qty` | Same | ✅ |
+| Identical query structure | `order_items` + `orders!inner(status, created_at)` | Same | ✅ |
+| Margin safety | `revenue > 0` check | `revenue > 0 && hasCost` check, returns `null` | ✅ |
+| No products/recipes for financials | Correct | Correct | ✅ |
+
+### What still needs implementation
+
+Both hooks lack `tierFilter` and `unitPrice` from the approved plan. The pricing panel still uses `products.retail_price`.
 
 ### Changes
 
-**1. `src/hooks/useFinancialData.ts`** — Revenue + cost from order_items
+**1. `src/hooks/useProductProfitability.ts`**
 
-Replace `orders.total` approach. Single query: `order_items` with nested `orders(status, created_at)`, filter `status = entregado`, period filter on `created_at`.
+- Add `tierFilter` parameter: `"minorista" | "intermedio" | "mayorista" | null`
+- Add `product_id` and `pricing_tier_applied` to select
+- Apply tier filter at query level: `if (tierFilter) query = query.eq("pricing_tier_applied", tierFilter)`
+- Aggregate by `product_id` (not `product_name`)
+- Add `unitPrice: number | null` — calculated as `units > 0 ? revenue / units : null`
+- Add `product_id` to `ProductProfit` interface
+- If `units === 0`: revenue = 0, unitPrice = null, margin = null
 
-- `revenue = SUM(item.total > 0 ? item.total : (item.unit_price ?? 0) * (item.quantity ?? 0))`
-- `estimatedCost = SUM((item.cost_snapshot ?? 0) * (item.quantity ?? 0))` where cost_snapshot > 0
-- Export new `estimatedCost` field
-- Remove `orders.total` query for revenue
+**2. `src/hooks/useFinancialData.ts`**
 
-**2. `src/hooks/useProductProfitability.ts`** — Pure snapshot, no recipes
+- Add `tierFilter` parameter (same type)
+- Add `pricing_tier_applied` to select
+- Apply tier filter at query level: `if (tierFilter) query = query.eq("pricing_tier_applied", tierFilter)`
+- No other changes needed — revenue/cost logic is already correct
 
-Remove entirely:
-- Recipe query, `costMap`, `recipeProducts`
-- `hasLegacyData` field from interface
+**3. `src/pages/admin/OwnerDashboard.tsx`**
 
-New logic per product:
-- `revenue = SUM(item.total > 0 ? item.total : (unit_price ?? 0) * (quantity ?? 0))`
-- `cost = SUM((cost_snapshot ?? 0) * (quantity ?? 0))` where `cost_snapshot > 0`
-- `hasRecipe = true` if any item for that product has `cost_snapshot > 0`
-- `margin = revenue > 0 && hasRecipe ? ((revenue - cost) / revenue) * 100 : null`
+- Add `tierFilter` state + "Tipo de venta" dropdown (Todos / Minorista / Intermedio / Mayorista)
+- Pass `tierFilter` to both hooks
+- Add "Precio promedio" column to profitability table showing `unitPrice`
+- In pricing panel: replace `products.retail_price` ("Precio actual") with real `unitPrice` from profitability data, matched by `product_id`
 
-Single query approach: `order_items` select with `orders!inner(status, created_at)`, filter `orders.status = entregado` and `orders.created_at >= periodStart`.
-
-**3. `src/pages/admin/OwnerDashboard.tsx`** — UI cleanup
-
-- Remove `hasLegacyData` tooltip/icon references
-- Remove `Info` import
-- Margin display: `margin === null` → "No calculable", else badge with percentage
-- Cost display: `!hasRecipe` → "Sin costo"
+**4. `.lovable/plan.md`** — Update with final corrections
 
 ### Interface
 
 ```typescript
 export interface ProductProfit {
+  product_id: string;
   product_name: string;
   units_sold: number;
   revenue: number;
   cost: number;
   margin: number | null;
+  unitPrice: number | null;
   hasRecipe: boolean;
 }
 ```
@@ -51,11 +64,12 @@ export interface ProductProfit {
 
 | File | Change |
 |------|--------|
-| `src/hooks/useFinancialData.ts` | Revenue + estimatedCost from order_items, single query |
-| `src/hooks/useProductProfitability.ts` | Remove recipe fallback, pure snapshot, margin as null |
-| `src/pages/admin/OwnerDashboard.tsx` | Remove legacy indicators, null margin display |
+| `src/hooks/useFinancialData.ts` | Add `tierFilter` at query level |
+| `src/hooks/useProductProfitability.ts` | Add `tierFilter`, `product_id`, `unitPrice`, aggregate by `product_id` |
+| `src/pages/admin/OwnerDashboard.tsx` | Tier dropdown, unitPrice column, replace `products.retail_price` |
+| `.lovable/plan.md` | Update with final plan |
 
 ### Unchanged
 
-- Edge function, CreateOrderForm, pricing, recipes, ingredients, delivery, DB schema
+- Edge function, CreateOrderForm, pricing logic, recipes, ingredients, DB schema, delivery
 
