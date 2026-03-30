@@ -1,51 +1,56 @@
 
 
-## Financial Refactor — Final Corrected Plan
+## Unified Pricing System — Price Deviation Fix
 
-### Verification of Current Code
+### Current State
 
-| Rule | `useFinancialData` | `useProductProfitability` | Status |
-|------|---|---|---|
-| Filter `entregado` | `.eq("orders.status", "entregado")` | `.eq("orders.status", "entregado")` | ✅ |
-| Revenue null safety | `item.total && item.total > 0 ? item.total : (unit_price ?? 0) * qty` | Same | ✅ |
-| Cost null safety | `(cost_snapshot ?? 0) * qty` | Same | ✅ |
-| Identical query structure | `order_items` + `orders!inner(status, created_at)` | Same | ✅ |
-| Margin safety | `revenue > 0` check | `revenue > 0 && hasCost` check, returns `null` | ✅ |
-| No products/recipes for financials | Correct | Correct | ✅ |
-
-### What still needs implementation
-
-Both hooks lack `tierFilter` and `unitPrice` from the approved plan. The pricing panel still uses `products.retail_price`.
+- `useProductProfitability` has `unitPrice` (revenue/units) and `tierFilter` — both correct and needed for profitability analysis
+- Pricing panel uses `unitPrice` from sales as "Precio real" — **incorrect per PRD**, should use `products` table prices
+- `applySuggestedPrice` always updates `retail_price` — should be tier-aware
+- No `priceDeviation` detection exists
 
 ### Changes
 
 **1. `src/hooks/useProductProfitability.ts`**
 
-- Add `tierFilter` parameter: `"minorista" | "intermedio" | "mayorista" | null`
-- Add `product_id` and `pricing_tier_applied` to select
-- Apply tier filter at query level: `if (tierFilter) query = query.eq("pricing_tier_applied", tierFilter)`
-- Aggregate by `product_id` (not `product_name`)
-- Add `unitPrice: number | null` — calculated as `units > 0 ? revenue / units : null`
-- Add `product_id` to `ProductProfit` interface
-- If `units === 0`: revenue = 0, unitPrice = null, margin = null
+- Remove `unitPrice` from `ProductProfit` interface
+- Remove `unitPrice` calculation (line 82, 90)
+- Add `priceDeviation: boolean` field
+- Fetch products table once (outside loop): `retail_price`, `wholesale_price`, `intermediate_price` by `product_id`
+- For each aggregated product:
+  - Compute `averageUnitPrice = units > 0 ? revenue / units : 0`
+  - Look up expected price using **each item's `pricing_tier_applied`** (not the UI filter):
+    - `minorista` → `retail_price`
+    - `intermedio` → `intermediate_price ?? retail_price`
+    - `mayorista` → `wholesale_price ?? retail_price`
+  - Since items are aggregated, use the **dominant tier** (most common `pricing_tier_applied` for that product) to pick expected price
+  - `tolerance = expectedPrice * 0.05`
+  - `priceDeviation = Math.abs(averageUnitPrice - expectedPrice) > tolerance`
+  - If `units === 0`: `priceDeviation = false`
 
-**2. `src/hooks/useFinancialData.ts`**
+**2. `src/pages/admin/OwnerDashboard.tsx`**
 
-- Add `tierFilter` parameter (same type)
-- Add `pricing_tier_applied` to select
-- Apply tier filter at query level: `if (tierFilter) query = query.eq("pricing_tier_applied", tierFilter)`
-- No other changes needed — revenue/cost logic is already correct
+**Profitability table (lines 186-213):**
+- Remove "Precio prom." column header (line 190) and data cell (line 200)
+- Add warning icon on product name if `priceDeviation === true`: "⚠ Precio aplicado difiere del oficial"
 
-**3. `src/pages/admin/OwnerDashboard.tsx`**
+**Pricing panel (lines 39-69):**
+- Replace `salesPriceMap` / `unitPrice` approach with tier-aware price from `products` table
+- Fetch `retail_price`, `wholesale_price`, `intermediate_price` alongside existing `id, name, target_margin`
+- Select price based on `tierFilter`:
+  - `null` or `"minorista"` → `retail_price`
+  - `"intermedio"` → `intermediate_price ?? retail_price`
+  - `"mayorista"` → `wholesale_price ?? retail_price`
+- Column label: "Precio actual" (replace "Precio real")
+- Margin: `price > 0 ? ((price - cost) / price) * 100 : null`
 
-- Add `tierFilter` state + "Tipo de venta" dropdown (Todos / Minorista / Intermedio / Mayorista)
-- Pass `tierFilter` to both hooks
-- Add "Precio promedio" column to profitability table showing `unitPrice`
-- In pricing panel: replace `products.retail_price` ("Precio actual") with real `unitPrice` from profitability data, matched by `product_id`
+**`applySuggestedPrice` (line 108-114):**
+- Update the correct column based on `tierFilter`:
+  - `null` or `"minorista"` → `retail_price`
+  - `"intermedio"` → `intermediate_price`
+  - `"mayorista"` → `wholesale_price`
 
-**4. `.lovable/plan.md`** — Update with final corrections
-
-### Interface
+### Updated Interface
 
 ```typescript
 export interface ProductProfit {
@@ -55,8 +60,8 @@ export interface ProductProfit {
   revenue: number;
   cost: number;
   margin: number | null;
-  unitPrice: number | null;
   hasRecipe: boolean;
+  priceDeviation: boolean;
 }
 ```
 
@@ -64,12 +69,11 @@ export interface ProductProfit {
 
 | File | Change |
 |------|--------|
-| `src/hooks/useFinancialData.ts` | Add `tierFilter` at query level |
-| `src/hooks/useProductProfitability.ts` | Add `tierFilter`, `product_id`, `unitPrice`, aggregate by `product_id` |
-| `src/pages/admin/OwnerDashboard.tsx` | Tier dropdown, unitPrice column, replace `products.retail_price` |
-| `.lovable/plan.md` | Update with final plan |
+| `src/hooks/useProductProfitability.ts` | Remove `unitPrice`, add `priceDeviation` with tolerance-based detection using per-item tier |
+| `src/pages/admin/OwnerDashboard.tsx` | Remove avg price column, fix pricing panel to use products table, tier-aware `applySuggestedPrice`, show deviation warning |
 
 ### Unchanged
 
-- Edge function, CreateOrderForm, pricing logic, recipes, ingredients, DB schema, delivery
+- `useFinancialData.ts` (no pricing logic)
+- DB schema, edge functions, CreateOrderForm, recipes, delivery
 
