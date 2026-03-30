@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfDay, startOfWeek, startOfMonth, format } from "date-fns";
+import type { TierFilter } from "./useProductProfitability";
 
 export type Period = "hoy" | "semana" | "mes";
 
@@ -13,7 +14,7 @@ function getPeriodStart(period: Period): string {
   }
 }
 
-export function useFinancialData(period: Period) {
+export function useFinancialData(period: Period, tierFilter: TierFilter = null) {
   const [revenue, setRevenue] = useState(0);
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [expenses, setExpenses] = useState(0);
@@ -26,20 +27,24 @@ export function useFinancialData(period: Period) {
     const start = getPeriodStart(period);
     const startDate = format(new Date(start), "yyyy-MM-dd");
 
-    // Single source: order_items joined with orders, filtered by entregado
+    let itemsQuery = supabase
+      .from("order_items")
+      .select("total, unit_price, quantity, cost_snapshot, pricing_tier_applied, orders!inner(status, created_at)")
+      .eq("orders.status", "entregado" as any)
+      .gte("orders.created_at", start);
+
+    if (tierFilter) {
+      itemsQuery = itemsQuery.eq("pricing_tier_applied", tierFilter);
+    }
+
     const [itemsRes, expensesRes, cashRes] = await Promise.all([
-      supabase
-        .from("order_items")
-        .select("total, unit_price, quantity, cost_snapshot, orders!inner(status, created_at)")
-        .eq("orders.status", "entregado" as any)
-        .gte("orders.created_at", start),
+      itemsQuery,
       supabase.from("expenses").select("*").gte("date", startDate).order("date", { ascending: false }),
       supabase.from("cash_movements").select("*").gte("date", startDate).order("date", { ascending: false }),
     ]);
 
     const items = (itemsRes.data || []) as any[];
 
-    // Revenue = SUM of item totals (with data repair for legacy items)
     let totalRevenue = 0;
     let totalCost = 0;
     items.forEach((item) => {
@@ -65,15 +70,14 @@ export function useFinancialData(period: Period) {
 
   useEffect(() => {
     fetchData();
-  }, [period]);
+  }, [period, tierFilter]);
 
-  // Realtime subscriptions
   useEffect(() => {
     const ch1 = supabase.channel("fin-expenses").on("postgres_changes", { event: "*", schema: "public", table: "expenses" }, fetchData).subscribe();
     const ch2 = supabase.channel("fin-cash").on("postgres_changes", { event: "*", schema: "public", table: "cash_movements" }, fetchData).subscribe();
     const ch3 = supabase.channel("fin-orders").on("postgres_changes", { event: "*", schema: "public", table: "orders" }, fetchData).subscribe();
     return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); supabase.removeChannel(ch3); };
-  }, [period]);
+  }, [period, tierFilter]);
 
   const totalCashIn = cashMovements.filter(m => m.type === "ingreso").reduce((s, m) => s + m.amount, 0);
   const totalCashOut = cashMovements.filter(m => m.type !== "ingreso").reduce((s, m) => s + m.amount, 0);
