@@ -172,19 +172,7 @@ const OwnerDashboard = () => {
                   <tbody>
                     {products.map(p => (
                       <tr key={p.product_name} className="border-b last:border-0">
-                        <td className="py-2 font-body flex items-center gap-1">
-                          {p.product_name}
-                          {p.hasLegacyData && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Info className="w-3.5 h-3.5 text-amber-500 inline-block" />
-                                </TooltipTrigger>
-                                <TooltipContent><p className="text-xs">Incluye datos históricos sin snapshot</p></TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                        </td>
+                        <td className="py-2 font-body">{p.product_name}</td>
                         <td className="py-2 text-right">{p.units_sold}</td>
                         <td className="py-2 text-right">{fmt(p.revenue)}</td>
                         <td className="py-2 text-right">{p.hasRecipe ? fmt(p.cost) : <span className="text-muted-foreground text-xs">Sin costo</span>}</td>
