@@ -1,79 +1,61 @@
 
 
-## Unified Pricing System — Price Deviation Fix
+## Fix Currency Formatting — Plan
 
-### Current State
+### Root Cause
 
-- `useProductProfitability` has `unitPrice` (revenue/units) and `tierFilter` — both correct and needed for profitability analysis
-- Pricing panel uses `unitPrice` from sales as "Precio real" — **incorrect per PRD**, should use `products` table prices
-- `applySuggestedPrice` always updates `retail_price` — should be tier-aware
-- No `priceDeviation` detection exists
+Line 18 of `OwnerDashboard.tsx`, line 13 of `Recipes.tsx`, and line 14 of `Ingredients.tsx` all define:
+```typescript
+const fmt = (cents: number) => `$${(cents / 100)...}`;
+```
+This divides all monetary values by 100. Since the DB stores whole pesos (e.g., 2000 = $2,000), all displayed values are 100x too small.
 
 ### Changes
 
-**1. `src/hooks/useProductProfitability.ts`**
+**1. Create `src/utils/currency.ts`**
 
-- Remove `unitPrice` from `ProductProfit` interface
-- Remove `unitPrice` calculation (line 82, 90)
-- Add `priceDeviation: boolean` field
-- Fetch products table once (outside loop): `retail_price`, `wholesale_price`, `intermediate_price` by `product_id`
-- For each aggregated product:
-  - Compute `averageUnitPrice = units > 0 ? revenue / units : 0`
-  - Look up expected price using **each item's `pricing_tier_applied`** (not the UI filter):
-    - `minorista` → `retail_price`
-    - `intermedio` → `intermediate_price ?? retail_price`
-    - `mayorista` → `wholesale_price ?? retail_price`
-  - Since items are aggregated, use the **dominant tier** (most common `pricing_tier_applied` for that product) to pick expected price
-  - `tolerance = expectedPrice * 0.05`
-  - `priceDeviation = Math.abs(averageUnitPrice - expectedPrice) > tolerance`
-  - If `units === 0`: `priceDeviation = false`
+Shared formatter — no division:
+```typescript
+export const formatCurrency = (value: number) =>
+  `$${value.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+```
 
 **2. `src/pages/admin/OwnerDashboard.tsx`**
 
-**Profitability table (lines 186-213):**
-- Remove "Precio prom." column header (line 190) and data cell (line 200)
-- Add warning icon on product name if `priceDeviation === true`: "⚠ Precio aplicado difiere del oficial"
+- Remove local `fmt` (line 18)
+- Import `formatCurrency` from `@/utils/currency`
+- Replace all `fmt(...)` calls with `formatCurrency(...)`
 
-**Pricing panel (lines 39-69):**
-- Replace `salesPriceMap` / `unitPrice` approach with tier-aware price from `products` table
-- Fetch `retail_price`, `wholesale_price`, `intermediate_price` alongside existing `id, name, target_margin`
-- Select price based on `tierFilter`:
-  - `null` or `"minorista"` → `retail_price`
-  - `"intermedio"` → `intermediate_price ?? retail_price`
-  - `"mayorista"` → `wholesale_price ?? retail_price`
-- Column label: "Precio actual" (replace "Precio real")
-- Margin: `price > 0 ? ((price - cost) / price) * 100 : null`
+**3. `src/pages/admin/Recipes.tsx`**
 
-**`applySuggestedPrice` (line 108-114):**
-- Update the correct column based on `tierFilter`:
-  - `null` or `"minorista"` → `retail_price`
-  - `"intermedio"` → `intermediate_price`
-  - `"mayorista"` → `wholesale_price`
+- Remove local `fmt` (line 13)
+- Import and use `formatCurrency`
 
-### Updated Interface
+**4. `src/pages/admin/Ingredients.tsx`**
 
-```typescript
-export interface ProductProfit {
-  product_id: string;
-  product_name: string;
-  units_sold: number;
-  revenue: number;
-  cost: number;
-  margin: number | null;
-  hasRecipe: boolean;
-  priceDeviation: boolean;
-}
-```
+- Remove local `fmt` (line 14)
+- Import and use `formatCurrency` for all **display** calls (`fmt(costo_unitario)`, `fmt(unit_price)`, `fmt(total_cost)`, `fmt(weightedAvgCost)`)
+
+### What is NOT changed
+
+- The Ingredients form's `costo_unitario / 100` on edit load (line 32) and `* 100` on save (line 42) — these are paired data transformations, not display formatting. Changing one without the other would corrupt data. This should be addressed separately if needed.
+- No backend, DB, or edge function changes
+- No changes to Cart, ProductCatalog, OrderDetail (these already use `toLocaleString` directly without `/100`)
+- Percentage/margin calculations are untouched
 
 ### Files
 
 | File | Change |
 |------|--------|
-| `src/hooks/useProductProfitability.ts` | Remove `unitPrice`, add `priceDeviation` with tolerance-based detection using per-item tier |
-| `src/pages/admin/OwnerDashboard.tsx` | Remove avg price column, fix pricing panel to use products table, tier-aware `applySuggestedPrice`, show deviation warning |
+| `src/utils/currency.ts` | New shared formatter |
+| `src/pages/admin/OwnerDashboard.tsx` | Replace `fmt` with `formatCurrency` |
+| `src/pages/admin/Recipes.tsx` | Replace `fmt` with `formatCurrency` |
+| `src/pages/admin/Ingredients.tsx` | Replace `fmt` with `formatCurrency` (display only) |
 
-### Unchanged
+### Expected Result
 
-- `useFinancialData.ts` (no pricing logic)
-- DB schema, edge functions, CreateOrderForm, recipes, delivery
+- 1 Pan de ajo → $2,000 (not $20)
+- 45 Pan de lomo → $31,500 (not $315)
+- Ingredient costs display correctly
+- Recipe costs display correctly
 
