@@ -54,7 +54,7 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
 
       const costSnap = item.cost_snapshot ?? 0;
       if (costSnap > 0) {
-        totalCost += costSnap * qty;
+        totalCost += costSnap / 100;
       }
     });
 

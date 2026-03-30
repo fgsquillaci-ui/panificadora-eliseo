@@ -96,7 +96,7 @@ export function useProductProfitability(period: Period, tierFilter: TierFilter =
 
         const costSnap = item.cost_snapshot ?? 0;
         if (costSnap > 0) {
-          agg[pid].cost += costSnap * qty;
+          agg[pid].cost += costSnap / 100;
           agg[pid].hasCost = true;
         }
 
