@@ -36,11 +36,11 @@ const OwnerDashboard = () => {
     fetchPending();
   }, [period]);
 
-  // Product pricing data — uses recipe cost + real sales unitPrice
+  // Product pricing data — uses recipe cost + official prices from products table
   const [pricingData, setPricingData] = useState<any[]>([]);
   useEffect(() => {
     const fetchPricing = async () => {
-      const { data: prods } = await supabase.from("products").select("id, name, target_margin");
+      const { data: prods } = await supabase.from("products").select("id, name, target_margin, retail_price, wholesale_price, intermediate_price");
       const { data: recipes } = await supabase.from("recipes").select("product_id, quantity, ingredients(costo_unitario)");
       
       const costMap: Record<string, number> = {};
@@ -48,25 +48,27 @@ const OwnerDashboard = () => {
         costMap[r.product_id] = (costMap[r.product_id] || 0) + Number(r.quantity) * (r.ingredients?.costo_unitario || 0);
       });
 
-      // Build a map of real avg sale price from profitability data
-      const salesPriceMap: Record<string, number | null> = {};
-      products.forEach(p => {
-        salesPriceMap[p.product_id] = p.unitPrice;
-      });
-      
       const rows = (prods || []).map((p: any) => {
         const cost = costMap[p.id] || 0;
-        const realPrice = salesPriceMap[p.id] ?? null;
+        // Select price based on tierFilter from products table
+        let tierPrice: number | null = null;
+        if (tierFilter === "mayorista") {
+          tierPrice = p.wholesale_price ?? p.retail_price;
+        } else if (tierFilter === "intermedio") {
+          tierPrice = p.intermediate_price ?? p.retail_price;
+        } else {
+          tierPrice = p.retail_price;
+        }
         const targetMargin = p.target_margin ?? 30;
-        const currentMargin = realPrice && realPrice > 0 ? ((realPrice - cost) / realPrice) * 100 : null;
+        const currentMargin = tierPrice && tierPrice > 0 ? ((tierPrice - cost) / tierPrice) * 100 : null;
         const suggestedPrice = targetMargin < 100 ? Math.round(cost / (1 - targetMargin / 100)) : cost;
-        return { id: p.id, name: p.name, cost, price: realPrice, targetMargin, currentMargin, suggestedPrice, hasRecipe: cost > 0 };
+        return { id: p.id, name: p.name, cost, price: tierPrice, targetMargin, currentMargin, suggestedPrice, hasRecipe: cost > 0 };
       }).filter((p: any) => p.hasRecipe);
       
       setPricingData(rows);
     };
     fetchPricing();
-  }, [ingredients, products]);
+  }, [ingredients, tierFilter]);
 
   const profit = revenue - estimatedCost - expenses;
   const margin = revenue > 0 ? ((revenue - estimatedCost) / revenue) * 100 : 0;
@@ -106,7 +108,8 @@ const OwnerDashboard = () => {
   };
 
   const applySuggestedPrice = async (productId: string, suggestedPrice: number) => {
-    const { error } = await supabase.from("products").update({ retail_price: suggestedPrice, last_cost_sync_at: new Date().toISOString() } as any).eq("id", productId);
+    const priceColumn = tierFilter === "mayorista" ? "wholesale_price" : tierFilter === "intermedio" ? "intermediate_price" : "retail_price";
+    const { error } = await supabase.from("products").update({ [priceColumn]: suggestedPrice, last_cost_sync_at: new Date().toISOString() } as any).eq("id", productId);
     if (error) { toast.error("Error al actualizar precio"); } else {
       toast.success("Precio actualizado");
       setPricingData(prev => prev.map(p => p.id === productId ? { ...p, price: suggestedPrice, currentMargin: p.targetMargin } : p));
@@ -187,17 +190,22 @@ const OwnerDashboard = () => {
                     <th className="py-2 font-medium">Producto</th>
                     <th className="py-2 font-medium text-right">Uds</th>
                     <th className="py-2 font-medium text-right">Ingreso</th>
-                    <th className="py-2 font-medium text-right">Precio prom.</th>
                     <th className="py-2 font-medium text-right">Costo</th>
                     <th className="py-2 font-medium text-right">Margen</th>
                   </tr></thead>
                   <tbody>
                     {products.map(p => (
                       <tr key={p.product_id} className="border-b last:border-0">
-                        <td className="py-2 font-body">{p.product_name}</td>
+                        <td className="py-2 font-body flex items-center gap-1">
+                          {p.product_name}
+                          {p.priceDeviation && (
+                            <TooltipProvider><Tooltip><TooltipTrigger>
+                              <AlertCircle className="w-3.5 h-3.5 text-yellow-500" />
+                            </TooltipTrigger><TooltipContent><p className="text-xs">Precio aplicado difiere del oficial</p></TooltipContent></Tooltip></TooltipProvider>
+                          )}
+                        </td>
                         <td className="py-2 text-right">{p.units_sold}</td>
                         <td className="py-2 text-right">{fmt(p.revenue)}</td>
-                        <td className="py-2 text-right">{p.unitPrice !== null ? fmt(Math.round(p.unitPrice)) : <span className="text-muted-foreground text-xs">—</span>}</td>
                         <td className="py-2 text-right">{p.hasRecipe ? fmt(p.cost) : <span className="text-muted-foreground text-xs">Sin costo</span>}</td>
                         <td className="py-2 text-right">
                           {p.margin !== null ? (
@@ -227,7 +235,7 @@ const OwnerDashboard = () => {
                   <thead><tr className="border-b text-left text-muted-foreground">
                     <th className="py-2 font-medium">Producto</th>
                     <th className="py-2 font-medium text-right">Costo</th>
-                    <th className="py-2 font-medium text-right">Precio real</th>
+                    <th className="py-2 font-medium text-right">Precio actual</th>
                     <th className="py-2 font-medium text-right">Margen actual</th>
                     <th className="py-2 font-medium text-right">Objetivo</th>
                     <th className="py-2 font-medium text-right">Precio sugerido</th>
