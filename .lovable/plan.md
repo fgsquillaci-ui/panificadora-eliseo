@@ -1,73 +1,61 @@
 
 
-## Corrección Integral — Plan de Implementación
+## Financial Refactor — Corrected Plan
 
-### Diagnóstico real del sistema actual
+### Changes
 
-| Issue | Estado | Severidad |
-|-------|--------|-----------|
-| Order creation uses `as any` — masks type errors | Confirmado | Alta |
-| No rollback si items fallan (order queda huérfano) | Confirmado | Alta |
-| Revenue en profitability | Ya corregido (fallback total → unit_price*qty) | ✅ OK |
-| Snapshots en order_items | Ya implementado (unit_price, total, cost_snapshot, margin_snapshot, pricing_tier_applied) | ✅ OK |
-| Finanzas usa orders.total (no products) | Ya correcto en useFinancialData | ✅ OK |
-| Costo receta como unitario sin rendimiento | No hay campo `rendimiento` — receta asume 1 unidad | Media |
+**1. `src/hooks/useFinancialData.ts`** — Revenue + cost from order_items
 
-### Cambios necesarios
+Replace `orders.total` approach. Single query: `order_items` with nested `orders(status, created_at)`, filter `status = entregado`, period filter on `created_at`.
 
-**1. Edge function `create-order` — Transacción atómica**
+- `revenue = SUM(item.total > 0 ? item.total : (item.unit_price ?? 0) * (item.quantity ?? 0))`
+- `estimatedCost = SUM((item.cost_snapshot ?? 0) * (item.quantity ?? 0))` where cost_snapshot > 0
+- Export new `estimatedCost` field
+- Remove `orders.total` query for revenue
 
-Nueva edge function que recibe el pedido completo y ejecuta en una transacción SQL:
+**2. `src/hooks/useProductProfitability.ts`** — Pure snapshot, no recipes
 
-```text
-BEGIN
-  INSERT orders → get order_id
-  INSERT order_items (con snapshots)
-  UPDATE orders SET total = SUM(items.total)
-  COMMIT
-  
-  Si falla → ROLLBACK automático
+Remove entirely:
+- Recipe query, `costMap`, `recipeProducts`
+- `hasLegacyData` field from interface
+
+New logic per product:
+- `revenue = SUM(item.total > 0 ? item.total : (unit_price ?? 0) * (quantity ?? 0))`
+- `cost = SUM((cost_snapshot ?? 0) * (quantity ?? 0))` where `cost_snapshot > 0`
+- `hasRecipe = true` if any item for that product has `cost_snapshot > 0`
+- `margin = revenue > 0 && hasRecipe ? ((revenue - cost) / revenue) * 100 : null`
+
+Single query approach: `order_items` select with `orders!inner(status, created_at)`, filter `orders.status = entregado` and `orders.created_at >= periodStart`.
+
+**3. `src/pages/admin/OwnerDashboard.tsx`** — UI cleanup
+
+- Remove `hasLegacyData` tooltip/icon references
+- Remove `Info` import
+- Margin display: `margin === null` → "No calculable", else badge with percentage
+- Cost display: `!hasRecipe` → "Sin costo"
+
+### Interface
+
+```typescript
+export interface ProductProfit {
+  product_name: string;
+  units_sold: number;
+  revenue: number;
+  cost: number;
+  margin: number | null;
+  hasRecipe: boolean;
+}
 ```
 
-Esto elimina el problema de orders huérfanos y el error intermitente de items.
+### Files
 
-**2. `CreateOrderForm.tsx` — Llamar edge function**
+| File | Change |
+|------|--------|
+| `src/hooks/useFinancialData.ts` | Revenue + estimatedCost from order_items, single query |
+| `src/hooks/useProductProfitability.ts` | Remove recipe fallback, pure snapshot, margin as null |
+| `src/pages/admin/OwnerDashboard.tsx` | Remove legacy indicators, null margin display |
 
-Reemplazar las 2 llamadas separadas a Supabase (insert order + insert items) por una sola llamada a la edge function. Eliminar todos los `as any`.
+### Unchanged
 
-El cálculo de snapshots (cost, margin, tier) se mantiene en frontend porque necesita datos de recetas y pricing que ya están cargados.
-
-**3. `useProductProfitability.ts` — Clarificar costo**
-
-El costo de receta (`costMap`) ya se calcula correctamente como suma de (cantidad_ingrediente × costo_unitario_ingrediente) por producto. Esto ES el costo unitario si la receta representa 1 unidad del producto (que es el modelo actual).
-
-No agregar `rendimiento` ahora — sería una feature nueva que requiere migración y UI. El sistema actual es correcto bajo el supuesto de receta = 1 unidad.
-
-**4. Productos sin receta**
-
-Ya funciona: `margin = -1` se muestra como "No calculable" en el dashboard. Sin cambios.
-
-### Archivos
-
-| Archivo | Cambio |
-|---------|--------|
-| `supabase/functions/create-order/index.ts` | Nueva edge function — transacción atómica |
-| `src/components/CreateOrderForm.tsx` | Llamar edge function, eliminar `as any`, simplificar flujo |
-| `supabase/config.toml` | Config para nueva function (verify_jwt = false ya es default) |
-
-### Lo que NO se modifica
-
-- `useProductProfitability.ts` (revenue y cost ya están corregidos)
-- `useFinancialData.ts` (revenue total ya usa orders.total)
-- `pricing.ts` (lógica de tiers correcta)
-- Estructura de tablas (ya tiene todos los campos necesarios)
-- Pedidos históricos
-- Dashboards de delivery, revendedor
-
-### Resultado
-
-- Pedidos se crean atómicamente (sin orders huérfanos)
-- Snapshots obligatorios validados server-side
-- Sin `as any` en el flujo de creación
-- Finanzas sin cambios (ya corregidas)
+- Edge function, CreateOrderForm, pricing, recipes, ingredients, delivery, DB schema
 
