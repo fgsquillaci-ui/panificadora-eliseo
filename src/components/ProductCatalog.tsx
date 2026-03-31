@@ -76,31 +76,31 @@ const ProductCatalog = ({ onAddToCart, isLoggedIn }: Props) => {
                   {product.emoji}
                 </div>
                 <div className="p-5">
-                  <div className="flex items-start justify-between mb-1">
+                  <div className="flex flex-col gap-1 mb-4">
                     <h3 className="font-display font-semibold text-lg">{product.name}</h3>
                     <span className="font-body font-bold text-accent text-lg">
                       ${product.price.toLocaleString("es-AR")}{" "}
                     </span>
                   </div>
                   {product.unit && (
-                    <span className="text-xs text-muted-foreground font-body">
+                    <span className="text-xs text-muted-foreground font-body block mb-2">
                       por {product.unit}
                     </span>
                   )}
-                  {product.wholesalePrice && (
-                    <div className="mt-1 mb-2">
+                  {product.wholesalePrice && product.wholesalePrice > 0 && (
+                    <div className="mt-1 mb-3">
                       <span className="inline-block text-xs font-body font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">
                         Mayorista: ${product.wholesalePrice.toLocaleString("es-AR")}
                       </span>
                     </div>
                   )}
-                  <p className="text-muted-foreground text-sm font-body mb-4 leading-relaxed">
+                  <p className="text-muted-foreground text-sm font-body mb-6 leading-relaxed">
                     {product.description}
                   </p>
                   <motion.button
                     whileTap={{ scale: 0.93 }}
                     onClick={() => onAddToCart(product)}
-                    className="w-full bg-accent text-accent-foreground font-body font-semibold py-2.5 rounded-full text-sm hover:brightness-110 transition-all"
+                    className="w-full bg-accent text-accent-foreground font-body font-semibold py-2.5 rounded-full text-sm hover:brightness-110 transition-all mt-auto"
                   >
                     + Agregar al pedido
                   </motion.button>
