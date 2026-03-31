@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useIngredients, type Ingredient } from "@/hooks/useIngredients";
 import { usePurchases, type Purchase } from "@/hooks/usePurchases";
-import { Plus, Pencil, Trash2, ShoppingCart, TrendingUp, ArrowLeft } from "lucide-react";
+import { useBatches } from "@/hooks/useBatches";
+import { Plus, Pencil, Trash2, ShoppingCart, TrendingUp, ArrowLeft, AlertTriangle, Package } from "lucide-react";
 import { formatCurrency } from "@/utils/currency";
 
 const units = ["kg", "g", "litro", "ml", "unidad"];
@@ -25,6 +26,7 @@ const Ingredients = () => {
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [purchaseForm, setPurchaseForm] = useState({ quantity: "", unit_price: "", date: new Date().toISOString().slice(0, 10) });
   const { purchases, weightedAvgCost, create: createPurchase, remove: removePurchase } = usePurchases(selectedIngredient?.id);
+  const { batches, priceVariation } = useBatches(selectedIngredient?.id);
 
   const resetForm = () => { setForm({ name: "", unit: "kg", stock_actual: "", stock_minimo: "", costo_unitario: "" }); setEditing(null); };
 
@@ -101,6 +103,36 @@ const Ingredients = () => {
               </CardContent></Card>
             )}
           </div>
+
+          {/* Batches (Lotes) */}
+          <Card>
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <CardTitle className="text-base font-heading flex items-center gap-2">
+                <Package className="w-4 h-4" /> Lotes en stock
+                {priceVariation && (
+                  <Badge variant="destructive" className="ml-2 text-xs">
+                    <AlertTriangle className="w-3 h-3 mr-1" /> Variación {priceVariation.toFixed(0)}%
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {batches.length === 0 ? <p className="text-sm text-muted-foreground">Sin lotes con stock</p> : (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {batches.map(b => (
+                    <div key={b.id} className="flex justify-between items-center text-sm border-b pb-2">
+                      <div>
+                        <span className="font-body">{b.quantity_remaining} {selectedIngredient.unit}</span>
+                        <span className="text-xs text-muted-foreground ml-2">× {fmt(b.unit_cost)}/{selectedIngredient.unit}</span>
+                        {b.supplier && <span className="text-xs text-muted-foreground ml-2">({b.supplier})</span>}
+                      </div>
+                      <span className="text-xs text-muted-foreground">{b.purchase_date}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Purchases */}
           <Card>
