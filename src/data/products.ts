@@ -17,7 +17,7 @@ export const WHOLESALE_MIN_QTY = 10;
 export const categories = [
   { id: "panes" as const, name: "Panes", emoji: "🍞" },
   { id: "especiales" as const, name: "Pizzas & Especiales", emoji: "🍕" },
-  { id: "tortilleria" as const, name: "Tortillería", emoji: "🫓" },
+  { id: "tortilleria" as const, name: "Tortitas", emoji: "🫓" },
 ];
 
 /** @deprecated Use getUnitPrice from src/lib/pricing.ts instead */
