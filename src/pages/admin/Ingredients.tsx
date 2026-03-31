@@ -104,6 +104,36 @@ const Ingredients = () => {
             )}
           </div>
 
+          {/* Batches (Lotes) */}
+          <Card>
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <CardTitle className="text-base font-heading flex items-center gap-2">
+                <Package className="w-4 h-4" /> Lotes en stock
+                {priceVariation && (
+                  <Badge variant="destructive" className="ml-2 text-xs">
+                    <AlertTriangle className="w-3 h-3 mr-1" /> Variación {priceVariation.toFixed(0)}%
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {batches.length === 0 ? <p className="text-sm text-muted-foreground">Sin lotes con stock</p> : (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {batches.map(b => (
+                    <div key={b.id} className="flex justify-between items-center text-sm border-b pb-2">
+                      <div>
+                        <span className="font-body">{b.quantity_remaining} {selectedIngredient.unit}</span>
+                        <span className="text-xs text-muted-foreground ml-2">× {fmt(b.unit_cost)}/{selectedIngredient.unit}</span>
+                        {b.supplier && <span className="text-xs text-muted-foreground ml-2">({b.supplier})</span>}
+                      </div>
+                      <span className="text-xs text-muted-foreground">{b.purchase_date}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Purchases */}
           <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
