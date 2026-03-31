@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import heroBread from "@/assets/hero-bread.jpg";
+
 import logo from "@/assets/logo.png";
 
 const Hero = ({ onCtaClick }: { onCtaClick: () => void }) => {
@@ -7,10 +7,13 @@ const Hero = ({ onCtaClick }: { onCtaClick: () => void }) => {
     <section className="relative w-full h-[70vh] flex items-center justify-center text-center">
       {/* Background */}
       <div className="absolute inset-0">
-        <img
-          src={heroBread}
-          alt="Panificadora Eliseo – Pan artesanal"
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
           className="w-full h-full object-cover"
+          src="/video/video_portada.mp4"
         />
         <div className="absolute inset-0 bg-black/20" />
       </div>
