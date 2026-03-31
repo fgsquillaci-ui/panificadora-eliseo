@@ -24,7 +24,7 @@ const Header = ({ totalItems, bounceKey, onCartClick, profile, isLoggedIn, onSig
       <a href="#" className="flex items-center">
         <img src={logo} alt="Panificadora Eliseo" className="h-14" />
       </a>
-      <nav className="hidden md:flex gap-6 font-body text-sm">
+      <nav className="hidden md:flex gap-3 md:gap-4 lg:gap-6 font-body text-xs lg:text-sm">
         <a href="#como-funciona" className="hover:text-accent transition-colors">Cómo funciona</a>
         <a href="#productos" className="hover:text-accent transition-colors">Productos</a>
         <a href="#quienes-somos" className="hover:text-accent transition-colors">Quiénes somos</a>
