@@ -1,17 +1,23 @@
 
 
-## Reemplazar logo en Hero y Header
+## Ajuste de navegación para tablet
 
-### Cambios
+El viewport actual es 768px, que es exactamente el breakpoint `md:` donde la nav aparece. Con `gap-6` y `text-sm` los links pueden quedar apretados junto al logo y los botones de acción.
 
-1. Copiar `user-uploads://Logo.png` a `src/assets/logo.png` (reemplaza el actual)
-2. No se necesitan cambios en código — ambos archivos (`Hero.tsx` y `Header.tsx`) ya importan `from "@/assets/logo.png"`
+### Cambios en `src/components/Header.tsx` (línea 27)
 
-El nuevo logo se aplicará automáticamente en todas las resoluciones (móvil, tablet, desktop).
+Reducir el gap y tamaño de texto en tablet, escalando a desktop:
 
-### Archivos
+```
+gap-6 → gap-3 md:gap-4 lg:gap-6
+text-sm → text-xs lg:text-sm
+```
 
-| Acción | Archivo |
-|--------|---------|
-| Reemplazar | `src/assets/logo.png` |
+Esto da más respiro entre los 3 links en tablet sin sobreponerse, y mantiene el estilo original en desktop.
+
+### Archivo
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/Header.tsx` | Ajustar clases responsive del `<nav>` (línea 27) |
 
