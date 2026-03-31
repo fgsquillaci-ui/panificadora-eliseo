@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useRole, type AppRole } from "@/hooks/useRole";
-import { LogOut, LayoutDashboard, Package, Users, Truck, Home, UserRound, DollarSign, Wheat, BookOpen } from "lucide-react";
+import { LogOut, LayoutDashboard, Package, Users, Truck, Home, UserRound, DollarSign, Wheat, BookOpen, Receipt } from "lucide-react";
 import logo from "@/assets/logo.png";
 
 interface NavItem {
