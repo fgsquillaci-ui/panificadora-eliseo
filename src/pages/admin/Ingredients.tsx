@@ -78,7 +78,7 @@ const Ingredients = () => {
           <div className="grid sm:grid-cols-3 gap-3">
             <Card><CardContent className="p-4">
               <p className="text-xs text-muted-foreground mb-1">Costo actual</p>
-              <p className="text-xl font-heading font-bold text-foreground">{fmt(selectedIngredient.costo_unitario)} / {selectedIngredient.unit}</p>
+              <p className="text-xl font-heading font-bold text-foreground">{fmt(selectedIngredient.costo_unitario / 100)} / {selectedIngredient.unit}</p>
             </CardContent></Card>
             <Card><CardContent className="p-4">
               <p className="text-xs text-muted-foreground mb-1">Costo promedio (compras)</p>
