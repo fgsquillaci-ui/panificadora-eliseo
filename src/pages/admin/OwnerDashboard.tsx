@@ -28,14 +28,26 @@ const OwnerDashboard = () => {
 
   // Pending payments
   const [pendingPayments, setPendingPayments] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
-  useEffect(() => {
-    const fetchPending = async () => {
-      const { data } = await supabase.from("orders").select("total").eq("status", "entregado" as any);
-      const items = (data || []).filter((o: any) => (o as any).payment_status !== "cobrado");
-      setPendingPayments({ count: items.length, total: items.reduce((s: number, o: any) => s + (o.total || 0), 0) });
-    };
+  const [pendingOrders, setPendingOrders] = useState<{ id: string; total: number; customer_name: string }[]>([]);
+  const [pendingDialogOpen, setPendingDialogOpen] = useState(false);
+  const fetchPending = async () => {
+    const { data } = await supabase
+      .from("orders")
+      .select("id, total, payment_status, customer_name")
+      .eq("status", "entregado" as any)
+      .neq("payment_status", "cobrado");
+    const items = (data || []) as { id: string; total: number; customer_name: string }[];
+    setPendingOrders(items);
+    setPendingPayments({ count: items.length, total: items.reduce((s, o) => s + (o.total || 0), 0) });
+  };
+  useEffect(() => { fetchPending(); }, [period]);
+
+  const markAsPaid = async (orderId: string) => {
+    const { error } = await supabase.from("orders").update({ payment_status: "cobrado" } as any).eq("id", orderId);
+    if (error) { toast.error("Error al actualizar"); return; }
+    toast.success("Pedido marcado como cobrado");
     fetchPending();
-  }, [period]);
+  };
 
   // Product pricing data — uses unit_cost from products table (SSOT)
   const [pricingData, setPricingData] = useState<any[]>([]);
