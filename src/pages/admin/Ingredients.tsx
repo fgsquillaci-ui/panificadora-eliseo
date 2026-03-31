@@ -179,7 +179,7 @@ const Ingredients = () => {
                   <div className="flex items-start justify-between mb-2">
                     <div>
                       <h3 className="font-heading font-semibold text-foreground">{i.name}</h3>
-                      <p className="text-xs text-muted-foreground">{fmt(i.costo_unitario)} / {i.unit}</p>
+                      <p className="text-xs text-muted-foreground">{fmt(i.costo_unitario / 100)} / {i.unit}</p>
                     </div>
                     <Badge variant={stockColor(i)}>{i.stock_actual} {i.unit}</Badge>
                   </div>
