@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
-import { categories, type Product, WHOLESALE_MIN_QTY } from "@/data/products";
+import { categories, type Product } from "@/data/products";
 import { useProducts } from "@/hooks/useProducts";
 
 interface Props {
