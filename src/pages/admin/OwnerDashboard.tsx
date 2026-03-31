@@ -90,7 +90,7 @@ const OwnerDashboard = () => {
   const [expOpen, setExpOpen] = useState(false);
   const [expForm, setExpForm] = useState({ type: "otro", description: "", amount: "" });
   const handleExpense = async () => {
-    const amt = Math.round(parseFloat(expForm.amount) * 100);
+    const amt = Math.round(parseFloat(expForm.amount) || 0);
     if (!amt || !expForm.description) { toast.error("Completá todos los campos"); return; }
     await supabase.from("expenses").insert({ type: expForm.type, description: expForm.description, amount: amt });
     setExpForm({ type: "otro", description: "", amount: "" });
@@ -102,7 +102,7 @@ const OwnerDashboard = () => {
   const [cashOpen, setCashOpen] = useState(false);
   const [cashForm, setCashForm] = useState({ type: "ingreso", description: "", amount: "" });
   const handleCash = async () => {
-    const amt = Math.round(parseFloat(cashForm.amount) * 100);
+    const amt = Math.round(parseFloat(cashForm.amount) || 0);
     if (!amt || !cashForm.description) { toast.error("Completá todos los campos"); return; }
     if (cashForm.type === "retiro" && amt > available) {
       toast.error("El retiro supera el dinero disponible");
@@ -466,8 +466,8 @@ const CostAnalysisSection = ({ ingredients, purchases, onUpdateCost }: {
               {rows.map(r => (
                 <tr key={r.id} className="border-b last:border-0">
                   <td className="py-2 font-body">{r.name}</td>
-                  <td className="py-2 text-right">{fmt(r.costo_unitario)}/{r.unit}</td>
-                  <td className="py-2 text-right">{fmt(r.suggested)}/{r.unit}</td>
+                  <td className="py-2 text-right">{fmt(r.costo_unitario / 100)}/{r.unit}</td>
+                  <td className="py-2 text-right">{fmt(r.suggested / 100)}/{r.unit}</td>
                   <td className="py-2 text-right">
                     <Badge variant={Math.abs(r.diff) > 15 ? "destructive" : "secondary"}>
                       {r.diff > 0 ? "+" : ""}{r.diff.toFixed(1)}%

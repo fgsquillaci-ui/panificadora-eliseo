@@ -78,11 +78,11 @@ const Ingredients = () => {
           <div className="grid sm:grid-cols-3 gap-3">
             <Card><CardContent className="p-4">
               <p className="text-xs text-muted-foreground mb-1">Costo actual</p>
-              <p className="text-xl font-heading font-bold text-foreground">{fmt(selectedIngredient.costo_unitario)} / {selectedIngredient.unit}</p>
+              <p className="text-xl font-heading font-bold text-foreground">{fmt(selectedIngredient.costo_unitario / 100)} / {selectedIngredient.unit}</p>
             </CardContent></Card>
             <Card><CardContent className="p-4">
               <p className="text-xs text-muted-foreground mb-1">Costo promedio (compras)</p>
-              <p className="text-xl font-heading font-bold text-foreground">{weightedAvgCost > 0 ? `${fmt(weightedAvgCost)} / ${selectedIngredient.unit}` : "Sin compras"}</p>
+              <p className="text-xl font-heading font-bold text-foreground">{weightedAvgCost > 0 ? `${fmt(weightedAvgCost / 100)} / ${selectedIngredient.unit}` : "Sin compras"}</p>
             </CardContent></Card>
             {weightedAvgCost > 0 && (
               <Card><CardContent className="p-4">
@@ -125,11 +125,11 @@ const Ingredients = () => {
                   {purchases.map(p => (
                     <div key={p.id} className="flex justify-between items-center text-sm border-b pb-2">
                       <div>
-                        <span className="font-body">{p.quantity} {selectedIngredient.unit} × {fmt(p.unit_price)}</span>
+                        <span className="font-body">{p.quantity} {selectedIngredient.unit} × {fmt(p.unit_price / 100)}</span>
                         <span className="text-xs text-muted-foreground ml-2">{p.date}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{fmt(p.total_cost)}</span>
+                        <span className="font-medium">{fmt(p.total_cost / 100)}</span>
                         <Button size="sm" variant="ghost" onClick={() => removePurchase(p.id)}><Trash2 className="w-3 h-3" /></Button>
                       </div>
                     </div>
@@ -179,7 +179,7 @@ const Ingredients = () => {
                   <div className="flex items-start justify-between mb-2">
                     <div>
                       <h3 className="font-heading font-semibold text-foreground">{i.name}</h3>
-                      <p className="text-xs text-muted-foreground">{fmt(i.costo_unitario)} / {i.unit}</p>
+                      <p className="text-xs text-muted-foreground">{fmt(i.costo_unitario / 100)} / {i.unit}</p>
                     </div>
                     <Badge variant={stockColor(i)}>{i.stock_actual} {i.unit}</Badge>
                   </div>
