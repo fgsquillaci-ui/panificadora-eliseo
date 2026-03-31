@@ -61,7 +61,7 @@ export function useProductProfitability(period: Period, tierFilter: TierFilter =
 
       const [{ data: items }, { data: productRows }] = await Promise.all([
         query,
-        supabase.from("products").select("id, retail_price, wholesale_price, intermediate_price"),
+        supabase.from("products").select("id, retail_price, wholesale_price, intermediate_price, unit_cost"),
       ]);
 
       if (!items || items.length === 0) {
