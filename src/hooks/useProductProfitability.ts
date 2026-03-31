@@ -72,9 +72,9 @@ export function useProductProfitability(period: Period, tierFilter: TierFilter =
       }
 
       // Build product price map
-      const priceMap: Record<string, { retail_price: number | null; wholesale_price: number | null; intermediate_price: number | null }> = {};
+      const priceMap: Record<string, { retail_price: number | null; wholesale_price: number | null; intermediate_price: number | null; unit_cost: number | null }> = {};
       (productRows || []).forEach((p: any) => {
-        priceMap[p.id] = { retail_price: p.retail_price, wholesale_price: p.wholesale_price, intermediate_price: p.intermediate_price };
+        priceMap[p.id] = { retail_price: p.retail_price, wholesale_price: p.wholesale_price, intermediate_price: p.intermediate_price, unit_cost: p.unit_cost };
       });
 
       // Aggregate by product_id, also track dominant tier
