@@ -157,6 +157,47 @@ export type Database = {
         }
         Relationships: []
       }
+      ingredient_batches: {
+        Row: {
+          created_at: string
+          id: string
+          ingredient_id: string
+          purchase_date: string
+          quantity_remaining: number
+          quantity_total: number
+          supplier: string | null
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ingredient_id: string
+          purchase_date?: string
+          quantity_remaining: number
+          quantity_total: number
+          supplier?: string | null
+          unit_cost: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ingredient_id?: string
+          purchase_date?: string
+          quantity_remaining?: number
+          quantity_total?: number
+          supplier?: string | null
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingredient_batches_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ingredients: {
         Row: {
           costo_unitario: number
