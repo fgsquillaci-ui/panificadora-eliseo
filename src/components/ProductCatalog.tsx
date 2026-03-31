@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
-import { categories, type Product, WHOLESALE_MIN_QTY } from "@/data/products";
+import { categories, type Product } from "@/data/products";
 import { useProducts } from "@/hooks/useProducts";
 
 interface Props {
@@ -90,7 +90,7 @@ const ProductCatalog = ({ onAddToCart, isLoggedIn }: Props) => {
                   {product.wholesalePrice && (
                     <div className="mt-1 mb-2">
                       <span className="inline-block text-xs font-body font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">
-                        Mayorista desde {WHOLESALE_MIN_QTY}u: ${product.wholesalePrice.toLocaleString("es-AR")}
+                        Mayorista: ${product.wholesalePrice.toLocaleString("es-AR")}
                       </span>
                     </div>
                   )}
