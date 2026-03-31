@@ -26,6 +26,7 @@ const Ingredients = () => {
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [purchaseForm, setPurchaseForm] = useState({ quantity: "", unit_price: "", date: new Date().toISOString().slice(0, 10) });
   const { purchases, weightedAvgCost, create: createPurchase, remove: removePurchase } = usePurchases(selectedIngredient?.id);
+  const { batches, priceVariation } = useBatches(selectedIngredient?.id);
 
   const resetForm = () => { setForm({ name: "", unit: "kg", stock_actual: "", stock_minimo: "", costo_unitario: "" }); setEditing(null); };
 
