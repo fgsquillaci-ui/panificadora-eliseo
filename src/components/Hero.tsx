@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import heroBread from "@/assets/hero-bread.jpg";
+
 import logo from "@/assets/logo.png";
 
 const Hero = ({ onCtaClick }: { onCtaClick: () => void }) => {
