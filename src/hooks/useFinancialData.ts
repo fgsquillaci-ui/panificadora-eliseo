@@ -17,6 +17,7 @@ function getPeriodStart(period: Period): string {
 export function useFinancialData(period: Period, tierFilter: TierFilter = null) {
   const [revenue, setRevenue] = useState(0);
   const [estimatedCost, setEstimatedCost] = useState(0);
+  const [realCost, setRealCost] = useState(0);
   const [expenses, setExpenses] = useState(0);
   const [cashMovements, setCashMovements] = useState<any[]>([]);
   const [expensesList, setExpensesList] = useState<any[]>([]);
