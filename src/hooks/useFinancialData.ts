@@ -52,6 +52,7 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
 
     let totalRevenue = 0;
     let totalCost = 0;
+    let totalRealCost = 0;
     items.forEach((item) => {
       const qty = item.quantity ?? 0;
       const itemTotal = item.total && item.total > 0 ? item.total : (item.unit_price ?? 0) * qty;
@@ -61,12 +62,21 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
       if (unitCost > 0) {
         totalCost += unitCost * qty;
       }
+
+      // Real cost from FIFO cost_snapshot (total line cost)
+      const costSnap = item.cost_snapshot ?? 0;
+      if (costSnap > 0) {
+        totalRealCost += costSnap;
+      } else {
+        console.warn("Delivered order item missing cost_snapshot", item);
+      }
     });
 
     const totalExpenses = (expensesRes.data || []).reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
 
     setRevenue(totalRevenue);
     setEstimatedCost(totalCost);
+    setRealCost(totalRealCost);
     setExpenses(totalExpenses);
     setExpensesList(expensesRes.data || []);
     setCashMovements(cashRes.data || []);
