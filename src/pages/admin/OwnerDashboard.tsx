@@ -466,8 +466,8 @@ const CostAnalysisSection = ({ ingredients, purchases, onUpdateCost }: {
               {rows.map(r => (
                 <tr key={r.id} className="border-b last:border-0">
                   <td className="py-2 font-body">{r.name}</td>
-                  <td className="py-2 text-right">{fmt(r.costo_unitario)}/{r.unit}</td>
-                  <td className="py-2 text-right">{fmt(r.suggested)}/{r.unit}</td>
+                  <td className="py-2 text-right">{fmt(r.costo_unitario / 100)}/{r.unit}</td>
+                  <td className="py-2 text-right">{fmt(r.suggested / 100)}/{r.unit}</td>
                   <td className="py-2 text-right">
                     <Badge variant={Math.abs(r.diff) > 15 ? "destructive" : "secondary"}>
                       {r.diff > 0 ? "+" : ""}{r.diff.toFixed(1)}%

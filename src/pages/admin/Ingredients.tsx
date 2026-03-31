@@ -129,7 +129,7 @@ const Ingredients = () => {
                         <span className="text-xs text-muted-foreground ml-2">{p.date}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{fmt(p.total_cost)}</span>
+                        <span className="font-medium">{fmt(p.total_cost / 100)}</span>
                         <Button size="sm" variant="ghost" onClick={() => removePurchase(p.id)}><Trash2 className="w-3 h-3" /></Button>
                       </div>
                     </div>
