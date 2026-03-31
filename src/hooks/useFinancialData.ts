@@ -99,5 +99,7 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
   const totalCashOut = cashMovements.filter(m => m.type !== "ingreso").reduce((s, m) => s + m.amount, 0);
   const totalWithdrawals = cashMovements.filter(m => m.type === "retiro").reduce((s, m) => s + m.amount, 0);
 
-  return { revenue, estimatedCost, expenses, expensesList, cashMovements, totalCashIn, totalCashOut, totalWithdrawals, loading, refetch: fetchData };
+  const realProfit = revenue - realCost - expenses;
+
+  return { revenue, estimatedCost, realCost, realProfit, expenses, expensesList, cashMovements, totalCashIn, totalCashOut, totalWithdrawals, loading, refetch: fetchData };
 }
