@@ -167,7 +167,31 @@ const OwnerDashboard = () => {
         {(lowStock.length > 0 || lowMarginProducts.length > 0 || highExpenses || pendingPayments.count > 0 || negativeMarginPricing.length > 0) && (
           <div className="grid gap-2">
             {pendingPayments.count > 0 && (
-              <AlertCard type="warning" text={`${pendingPayments.count} pedido(s) entregado(s) sin cobrar — ${fmt(pendingPayments.total)} pendiente`} />
+              <div className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-body bg-yellow-50 text-yellow-700`}>
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  {`${pendingPayments.count} pedido(s) entregado(s) sin cobrar — ${fmt(pendingPayments.total)} pendiente`}
+                </div>
+                <Dialog open={pendingDialogOpen} onOpenChange={setPendingDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline" className="shrink-0">Ver pedidos</Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader><DialogTitle>Pedidos sin cobrar</DialogTitle></DialogHeader>
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {pendingOrders.map(o => (
+                        <div key={o.id} className="flex items-center justify-between border-b pb-2">
+                          <div>
+                            <p className="text-sm font-medium">{o.customer_name}</p>
+                            <p className="text-xs text-muted-foreground">{fmt(o.total)}</p>
+                          </div>
+                          <Button size="sm" variant="default" onClick={() => markAsPaid(o.id)}>Cobrado</Button>
+                        </div>
+                      ))}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             )}
             {negativeMarginPricing.map(p => (
               <AlertCard key={p.id} type="destructive" text={`Margen negativo: ${p.name} (${p.currentMargin.toFixed(1)}%)`} />
