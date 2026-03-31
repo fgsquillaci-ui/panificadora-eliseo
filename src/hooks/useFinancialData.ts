@@ -37,10 +37,11 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
       itemsQuery = itemsQuery.eq("pricing_tier_applied", tierFilter);
     }
 
-    const [itemsRes, expensesRes, cashRes] = await Promise.all([
+    const [itemsRes, expensesRes, cashRes, productsRes] = await Promise.all([
       itemsQuery,
       supabase.from("expenses").select("*").gte("date", startDate).order("date", { ascending: false }),
       supabase.from("cash_movements").select("*").gte("date", startDate).order("date", { ascending: false }),
+      supabase.from("products").select("id, unit_cost"),
     ]);
 
     const items = (itemsRes.data || []) as any[];
