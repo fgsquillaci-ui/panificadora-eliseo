@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useIngredients, type Ingredient } from "@/hooks/useIngredients";
 import { usePurchases, type Purchase } from "@/hooks/usePurchases";
-import { Plus, Pencil, Trash2, ShoppingCart, TrendingUp, ArrowLeft } from "lucide-react";
+import { useBatches } from "@/hooks/useBatches";
+import { Plus, Pencil, Trash2, ShoppingCart, TrendingUp, ArrowLeft, AlertTriangle, Package } from "lucide-react";
 import { formatCurrency } from "@/utils/currency";
 
 const units = ["kg", "g", "litro", "ml", "unidad"];
