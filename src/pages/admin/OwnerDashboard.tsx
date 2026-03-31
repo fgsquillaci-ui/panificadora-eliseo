@@ -269,7 +269,7 @@ const OwnerDashboard = () => {
                     <th className="py-2 font-medium text-right">Precio actual</th>
                     <th className="py-2 font-medium text-right">Margen actual</th>
                     <th className="py-2 font-medium text-right">Objetivo</th>
-                    <th className="py-2 font-medium text-right">Precio sugerido</th>
+                    <th className="py-2 font-medium text-right">Precio mínimo</th>
                     <th className="py-2 font-medium text-right">Acción</th>
                   </tr></thead>
                   <tbody>
