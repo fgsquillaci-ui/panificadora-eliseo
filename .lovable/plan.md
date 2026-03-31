@@ -1,134 +1,145 @@
 
 
-## FIFO Inventory System — Final Implementation Plan
+## Expense Management System — Full Implementation Plan
+
+### Summary
+
+Create a dedicated "Gastos" module with strict validation, auto-computed amounts for raw materials, atomic batch creation via edge function, and safe edit/delete with FIFO cascade. Remove legacy expense/cash widgets from OwnerDashboard.
 
 ### Database Migration
 
+Add columns to `expenses` table:
+
 ```sql
--- 1. Create ingredient_batches table
-CREATE TABLE public.ingredient_batches (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  ingredient_id uuid NOT NULL REFERENCES public.ingredients(id) ON DELETE CASCADE,
-  quantity_total numeric NOT NULL,
-  quantity_remaining numeric NOT NULL,
-  unit_cost numeric NOT NULL,  -- FULL PESOS
-  purchase_date date NOT NULL DEFAULT CURRENT_DATE,
-  supplier text DEFAULT '',
-  created_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT positive_quantity CHECK (quantity_total > 0),
-  CONSTRAINT non_negative_remaining CHECK (quantity_remaining >= 0),
-  CONSTRAINT positive_cost CHECK (unit_cost > 0),
-  CONSTRAINT remaining_lte_total CHECK (quantity_remaining <= quantity_total)
-);
-
--- 2. RLS
-ALTER TABLE public.ingredient_batches ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Admins can manage batches" ON public.ingredient_batches
-  FOR ALL TO authenticated
-  USING (has_role(auth.uid(), 'admin'::app_role))
-  WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
-
--- 3. Performance index for FIFO queries
-CREATE INDEX idx_batches_fifo ON public.ingredient_batches (ingredient_id, purchase_date ASC, created_at ASC);
-
--- 4. Convert products.unit_cost to numeric
-ALTER TABLE public.products ALTER COLUMN unit_cost TYPE numeric;
-
--- 5. Convert order_items.cost_snapshot to numeric pesos (NO rounding)
-ALTER TABLE public.order_items ALTER COLUMN cost_snapshot TYPE numeric;
-UPDATE public.order_items SET cost_snapshot = cost_snapshot / 100.0 WHERE cost_snapshot > 0;
-
--- 6. Seed legacy batches (including zero-cost ingredients with stock)
-INSERT INTO public.ingredient_batches (ingredient_id, quantity_total, quantity_remaining, unit_cost, purchase_date, supplier)
-SELECT id, stock_actual, stock_actual,
-  CASE WHEN costo_unitario > 0 THEN costo_unitario / 100.0 ELSE 0.01 END,
-  CURRENT_DATE, 'Stock inicial'
-FROM public.ingredients WHERE stock_actual > 0;
-
--- 7. Enable realtime
-ALTER PUBLICATION supabase_realtime ADD TABLE public.ingredient_batches;
+ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS payment_method text NOT NULL DEFAULT 'efectivo';
+ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS supplier text DEFAULT '';
+ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS ingredient_id uuid DEFAULT NULL;
+ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS quantity numeric DEFAULT NULL;
+ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS unit_price numeric DEFAULT NULL;
+ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS batch_id uuid DEFAULT NULL;
+-- Rename 'type' to 'category' via new column + data migration
+ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT 'otros';
+UPDATE public.expenses SET category = type;
 ```
 
-Key safeguards in migration:
-- `quantity_remaining = quantity_total` enforced by seeding with same value
-- `CHECK (quantity_remaining <= quantity_total)` constraint
-- `CHECK (quantity_remaining >= 0)` prevents negative values
-- Composite index `(ingredient_id, purchase_date, created_at)` for FIFO performance
-- Zero-cost ingredients seeded with `0.01` to satisfy `positive_cost` constraint
+Note: The existing `type` column remains for backward compatibility but `category` becomes the canonical field going forward.
 
 ---
 
-### New File: `src/hooks/useBatches.ts`
+### New Edge Function: `supabase/functions/manage-expense/index.ts`
 
-- Fetch batches: `ORDER BY purchase_date ASC, created_at ASC, id ASC`
-- `consumeFIFO(ingredientId, neededQty)`:
-  - Uses `MIN(batch.quantity_remaining, remaining)` — never produces negatives
-  - Throws error if `remaining > 0` after all batches exhausted
-  - Returns total cost in pesos
-- Cascade resync after consumption:
-  1. `ingredients.stock_actual = SUM(quantity_remaining)`
-  2. `ingredients.costo_unitario` = weighted avg × 100
-  3. Find affected products via `recipes` → recalc `products.unit_cost`
+Handles atomic create/update/delete for expenses with raw material integration.
 
----
+**Create action:**
+- If `category === "materia_prima"`: validate `ingredient_id`, `quantity > 0`, `unit_price > 0`. Compute `amount = quantity * unit_price`. In a single SQL transaction: insert expense → insert `ingredient_batch` → update expense with `batch_id` → run cascade resync (update ingredient stock, weighted cost, product unit_costs).
+- Otherwise: validate `amount > 0`, ensure `ingredient_id/quantity/unit_price` are null.
 
-### Modified: `src/hooks/usePurchases.ts`
+**Delete action:**
+- If expense has `batch_id`: delete batch → cascade resync → delete expense (all in transaction).
+- Otherwise: just delete expense.
 
-- On `create()`: insert batch with `quantity_remaining = quantity_total` (same value), `unit_cost` in pesos
-- Cascade resync: stock, costo_unitario, then only affected products via recipes
+**Update action:**
+- If old was materia_prima with batch: delete old batch, cascade resync old ingredient.
+- If new is materia_prima: create new batch, assign batch_id, cascade resync new ingredient.
+- Update expense record.
 
----
-
-### Modified: `src/hooks/useRecipes.ts`
-
-- If `ingredient.stock_actual == 0`: show warning "Sin stock — costo no representativo"
-- `syncProductUnitCost` unchanged
+All operations wrapped in BEGIN/COMMIT/ROLLBACK.
 
 ---
 
-### Modified: `src/hooks/useProductProfitability.ts`
+### New Files
 
-- Remove `/100` from `cost_snapshot` (now in pesos after migration)
+**1. `src/hooks/useExpenses.ts`**
+- Fetches expenses with filters (category, date range)
+- Calls edge function for create/update/delete
+- Realtime subscription on `expenses` table
+- Computes monthly/daily totals
 
----
+**2. `src/components/expenses/ExpenseForm.tsx`**
+- Category dropdown: materia_prima, alquiler, sueldos, servicios, transporte, packaging, gastos_personales, otros
+- If `materia_prima`: show ingredient dropdown (from `useIngredients`), quantity, unit_price. **Hide** manual amount. Show "Total calculado: $X". Require all three fields.
+- If other category: show amount field, hide ingredient fields.
+- Payment method: efectivo / transferencia / tarjeta
+- Supplier (optional), description, date
+- Submit disabled when invalid
 
-### Modified: `supabase/functions/create-order/index.ts`
-
-- FIFO consumption per recipe ingredient within transaction
-- `MIN(batch.quantity_remaining, remaining)` — safe deduction
-- Save `cost_snapshot` in pesos (no scaling)
-- Rollback on insufficient stock with error details
-- After consumption: sync stock + costs for affected ingredients/products
-
----
-
-### Modified: `src/pages/admin/Ingredients.tsx`
-
-- "Lotes" section showing batches with `quantity_remaining > 0`
-- Price variation alert (>20% between batches)
-
----
-
-### Currency After Migration
-
-| Field | Unit | Normalization |
-|-------|------|---------------|
-| `ingredient_batches.unit_cost` | Pesos | None |
-| `ingredients.costo_unitario` | Cents | `/100` at display |
-| `products.unit_cost` | Pesos | None |
-| `order_items.cost_snapshot` | Pesos | None |
+**3. `src/pages/admin/Expenses.tsx`**
+- Header metrics: Total gastos del mes, Gastos hoy, % sobre ingresos
+- `+ Registrar gasto` button opens dialog with ExpenseForm
+- Table: Fecha, Categoría, Descripción, Monto, Método de pago, Proveedor, Acciones (edit/delete)
+- Category and date filters
+- Delete confirmation; for materia_prima warns about batch removal
+- Uses `DashboardLayout`
 
 ---
 
-### Files
+### Modified Files
+
+**4. `src/components/DashboardLayout.tsx`**
+- Add nav item: `{ label: "Gastos", path: "/admin/gastos", icon: <Receipt />, roles: ["admin"] }` after Recetas
+
+**5. `src/App.tsx`**
+- Add route: `/admin/gastos` → `ExpensesPage`
+
+**6. `src/pages/admin/OwnerDashboard.tsx`**
+- Remove lines 89-115 (expense + cash form state/handlers)
+- Remove lines 315-399 (Cash & Expenses grid with both cards)
+- Keep all KPIs, alerts, product ranking, pricing panel, cost analysis
+
+---
+
+### Financial Integration (Verified)
+
+`useFinancialData.ts` already correctly:
+- Calculates `totalExpenses = SUM(expenses.amount)` (line 66)
+- Has realtime subscription on `expenses` table (line 81)
+- Includes date filtering on expenses (line 42)
+- Profit formula at dashboard level: `revenue - estimatedCost - expenses` (line 80)
+
+No changes needed.
+
+---
+
+### Category Values
+
+| Value | Label |
+|-------|-------|
+| materia_prima | Materia Prima |
+| alquiler | Alquiler |
+| sueldos | Sueldos |
+| servicios | Servicios |
+| transporte | Transporte |
+| packaging | Packaging |
+| gastos_personales | Gastos personales |
+| otros | Otros |
+
+---
+
+### Key Safety Rules
+
+- `materia_prima` amount is ALWAYS computed (`quantity * unit_price`), never manual
+- Stock only comes from `ingredient_batches` — no manual stock updates
+- Historical orders/cost_snapshots are never modified
+- Orphan check: if materia_prima expense has no batch_id, log error on fetch
+- All batch operations atomic via edge function transaction
+
+---
+
+### Files Summary
 
 | File | Change |
 |------|--------|
-| Migration | Create table, constraints, index, alter columns, seed batches |
-| `src/hooks/useBatches.ts` | New: FIFO consume, batch fetch, cascade resync |
-| `src/hooks/usePurchases.ts` | Create batch on purchase, cascade resync |
-| `src/hooks/useRecipes.ts` | Zero-stock warning |
-| `src/hooks/useProductProfitability.ts` | Remove `/100` from cost_snapshot |
-| `src/pages/admin/Ingredients.tsx` | Batch list UI, price variation alert |
-| `supabase/functions/create-order/index.ts` | FIFO consumption + snapshot + rollback |
+| Migration | Add payment_method, supplier, ingredient_id, quantity, unit_price, batch_id, category to expenses |
+| `supabase/functions/manage-expense/index.ts` | New: atomic CRUD with FIFO integration |
+| `src/hooks/useExpenses.ts` | New: CRUD via edge function, filters, realtime |
+| `src/components/expenses/ExpenseForm.tsx` | New: conditional form with auto-computed amount |
+| `src/pages/admin/Expenses.tsx` | New: full expenses page with metrics + table |
+| `src/components/DashboardLayout.tsx` | Add "Gastos" nav item |
+| `src/App.tsx` | Add `/admin/gastos` route |
+| `src/pages/admin/OwnerDashboard.tsx` | Remove cash/expense widgets (lines 89-115, 315-399) |
+
+### Unchanged
+- `useFinancialData.ts` (already correct)
+- FIFO system, recipes, pricing logic
+- Historical order data
 
