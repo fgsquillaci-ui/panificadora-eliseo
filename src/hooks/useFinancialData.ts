@@ -46,6 +46,10 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
 
     const items = (itemsRes.data || []) as any[];
 
+    // Build product unit_cost map
+    const costMap: Record<string, number> = {};
+    (productsRes.data || []).forEach((p: any) => { costMap[p.id] = p.unit_cost ?? 0; });
+
     let totalRevenue = 0;
     let totalCost = 0;
     items.forEach((item) => {
@@ -53,9 +57,9 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
       const itemTotal = item.total && item.total > 0 ? item.total : (item.unit_price ?? 0) * qty;
       totalRevenue += itemTotal;
 
-      const costSnap = item.cost_snapshot ?? 0;
-      if (costSnap > 0) {
-        totalCost += costSnap / 100;
+      const unitCost = costMap[item.product_id] ?? 0;
+      if (unitCost > 0) {
+        totalCost += unitCost * qty;
       }
     });
 

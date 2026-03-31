@@ -37,20 +37,14 @@ const OwnerDashboard = () => {
     fetchPending();
   }, [period]);
 
-  // Product pricing data — uses recipe cost + official prices from products table
+  // Product pricing data — uses unit_cost from products table (SSOT)
   const [pricingData, setPricingData] = useState<any[]>([]);
   useEffect(() => {
     const fetchPricing = async () => {
-      const { data: prods } = await supabase.from("products").select("id, name, target_margin, retail_price, wholesale_price, intermediate_price");
-      const { data: recipes } = await supabase.from("recipes").select("product_id, quantity, ingredients(costo_unitario)");
-      
-      const costMap: Record<string, number> = {};
-      (recipes || []).forEach((r: any) => {
-        costMap[r.product_id] = (costMap[r.product_id] || 0) + (Number(r.quantity) * (r.ingredients?.costo_unitario || 0)) / 100;
-      });
+      const { data: prods } = await supabase.from("products").select("id, name, target_margin, retail_price, wholesale_price, intermediate_price, unit_cost");
 
       const rows = (prods || []).map((p: any) => {
-        const cost = costMap[p.id] || 0;
+        const cost = p.unit_cost ?? 0;
         // Select price based on tierFilter from products table
         let tierPrice: number | null = null;
         if (tierFilter === "mayorista") {
