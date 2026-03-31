@@ -77,9 +77,9 @@ const OwnerDashboard = () => {
     fetchPricing();
   }, [ingredients, tierFilter]);
 
-  const profit = revenue - estimatedCost - expenses;
+  const estimatedProfit = revenue - estimatedCost - expenses;
   const margin = revenue > 0 ? ((revenue - estimatedCost) / revenue) * 100 : 0;
-  const available = Math.max(0, profit - totalWithdrawals);
+  const available = Math.max(0, realProfit - totalWithdrawals);
 
   // Alerts
   const lowMarginProducts = products.filter(p => p.hasRecipe && p.margin !== null && p.margin < 20 && p.margin >= 0);
