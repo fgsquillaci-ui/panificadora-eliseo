@@ -355,6 +355,7 @@ export type Database = {
           retail_price: number | null
           target_margin: number | null
           unit: string | null
+          unit_cost: number | null
           wholesale_price: number | null
         }
         Insert: {
@@ -371,6 +372,7 @@ export type Database = {
           retail_price?: number | null
           target_margin?: number | null
           unit?: string | null
+          unit_cost?: number | null
           wholesale_price?: number | null
         }
         Update: {
@@ -387,6 +389,7 @@ export type Database = {
           retail_price?: number | null
           target_margin?: number | null
           unit?: string | null
+          unit_cost?: number | null
           wholesale_price?: number | null
         }
         Relationships: []

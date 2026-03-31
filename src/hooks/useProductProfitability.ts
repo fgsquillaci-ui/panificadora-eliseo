@@ -61,7 +61,7 @@ export function useProductProfitability(period: Period, tierFilter: TierFilter =
 
       const [{ data: items }, { data: productRows }] = await Promise.all([
         query,
-        supabase.from("products").select("id, retail_price, wholesale_price, intermediate_price"),
+        supabase.from("products").select("id, retail_price, wholesale_price, intermediate_price, unit_cost"),
       ]);
 
       if (!items || items.length === 0) {
@@ -72,9 +72,9 @@ export function useProductProfitability(period: Period, tierFilter: TierFilter =
       }
 
       // Build product price map
-      const priceMap: Record<string, { retail_price: number | null; wholesale_price: number | null; intermediate_price: number | null }> = {};
+      const priceMap: Record<string, { retail_price: number | null; wholesale_price: number | null; intermediate_price: number | null; unit_cost: number | null }> = {};
       (productRows || []).forEach((p: any) => {
-        priceMap[p.id] = { retail_price: p.retail_price, wholesale_price: p.wholesale_price, intermediate_price: p.intermediate_price };
+        priceMap[p.id] = { retail_price: p.retail_price, wholesale_price: p.wholesale_price, intermediate_price: p.intermediate_price, unit_cost: p.unit_cost };
       });
 
       // Aggregate by product_id, also track dominant tier
@@ -94,9 +94,9 @@ export function useProductProfitability(period: Period, tierFilter: TierFilter =
         const itemRevenue = item.total && item.total > 0 ? item.total : (item.unit_price ?? 0) * qty;
         agg[pid].revenue += itemRevenue;
 
-        const costSnap = item.cost_snapshot ?? 0;
-        if (costSnap > 0) {
-          agg[pid].cost += costSnap / 100;
+        const unitCost = priceMap[pid]?.unit_cost ?? 0;
+        if (unitCost > 0) {
+          agg[pid].cost += unitCost * qty;
           agg[pid].hasCost = true;
         }
 
