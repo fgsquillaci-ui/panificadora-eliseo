@@ -1,48 +1,36 @@
 
 
-## Ajustes al catálogo público
+## Reemplazar imagen Hero por video de fondo
 
-### 1. Simplificar etiqueta mayorista (`src/components/ProductCatalog.tsx`)
+### Cambios
 
-Línea 93 — cambiar:
-```
-Mayorista desde {WHOLESALE_MIN_QTY}u: ${product.wholesalePrice.toLocaleString("es-AR")}
-```
-Por:
-```
-Mayorista: ${product.wholesalePrice.toLocaleString("es-AR")}
-```
+**1. Copiar video al proyecto**
 
-Eliminar el import de `WHOLESALE_MIN_QTY` del archivo.
+`user-uploads://video_portada.mp4` → `public/video/video_portada.mp4`
 
-La condición existente `{product.wholesalePrice && ...}` ya omite productos sin precio mayorista (undefined, null o 0), así que no se mostrará nada si no hay valor.
+Se usa `public/` porque los videos como fondo se referencian mejor con URL directa (evita problemas de bundling con archivos grandes).
 
-### 2. Eliminar productos fuera de venta (base de datos)
+**2. Modificar `src/components/Hero.tsx`**
 
-Migración SQL para borrar estos 5 productos:
+- Reemplazar el `<img>` (líneas 10-13) por un `<video>` con `autoPlay`, `muted`, `loop`, `playsInline` y `object-cover`
+- Eliminar el import de `heroBread` (línea 2, ya no se usa)
+- Mantener el overlay oscuro (`bg-black/20`) y todo el contenido (logo, textos, botón CTA) sin cambios
 
-| Producto | ID |
-|---|---|
-| Pan de Viena | `432a1eb6-9a3a-4947-8a3b-12b1ba7644a9` |
-| Grisines | `bdacac09-6c30-416c-97f0-66ff0239d993` |
-| Pan Árabe | `7bf86b74-da57-4e7c-b37f-89eb3d08f8d4` |
-| Galleta Marinera | `4681089c-a642-4041-b9ad-e1c2c98b1a49` |
-| Tapas de Empanada | `e09ee0da-b444-41db-9fe8-65de4e52e13f` |
-
-```sql
-DELETE FROM products WHERE id IN (
-  '432a1eb6-9a3a-4947-8a3b-12b1ba7644a9',
-  'bdacac09-6c30-416c-97f0-66ff0239d993',
-  '7bf86b74-da57-4e7c-b37f-89eb3d08f8d4',
-  '4681089c-a642-4041-b9ad-e1c2c98b1a49',
-  'e09ee0da-b444-41db-9fe8-65de4e52e13f'
-);
+```tsx
+<video
+  autoPlay
+  muted
+  loop
+  playsInline
+  className="w-full h-full object-cover"
+  src="/video/video_portada.mp4"
+/>
 ```
 
-### Archivos afectados
+### Archivos
 
-| Archivo | Cambio |
-|---|---|
-| `src/components/ProductCatalog.tsx` | Simplificar label mayorista, quitar import `WHOLESALE_MIN_QTY` |
-| Migración SQL | Eliminar 5 productos de la base de datos |
+| Acción | Archivo |
+|--------|---------|
+| Copiar | `public/video/video_portada.mp4` |
+| Editar | `src/components/Hero.tsx` |
 
