@@ -13,7 +13,9 @@ export interface RecipeWithIngredient extends RecipeRow {
   ingredient_name: string;
   ingredient_unit: string;
   ingredient_cost: number;
+  ingredient_stock: number;
   line_cost: number;
+  noStock: boolean;
 }
 
 async function syncProductUnitCost(productId: string) {
