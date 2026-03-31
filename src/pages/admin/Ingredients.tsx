@@ -125,7 +125,7 @@ const Ingredients = () => {
                   {purchases.map(p => (
                     <div key={p.id} className="flex justify-between items-center text-sm border-b pb-2">
                       <div>
-                        <span className="font-body">{p.quantity} {selectedIngredient.unit} × {fmt(p.unit_price)}</span>
+                        <span className="font-body">{p.quantity} {selectedIngredient.unit} × {fmt(p.unit_price / 100)}</span>
                         <span className="text-xs text-muted-foreground ml-2">{p.date}</span>
                       </div>
                       <div className="flex items-center gap-2">
