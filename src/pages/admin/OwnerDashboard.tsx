@@ -90,7 +90,7 @@ const OwnerDashboard = () => {
   const [expOpen, setExpOpen] = useState(false);
   const [expForm, setExpForm] = useState({ type: "otro", description: "", amount: "" });
   const handleExpense = async () => {
-    const amt = Math.round(parseFloat(expForm.amount) * 100);
+    const amt = Math.round(parseFloat(expForm.amount) || 0);
     if (!amt || !expForm.description) { toast.error("Completá todos los campos"); return; }
     await supabase.from("expenses").insert({ type: expForm.type, description: expForm.description, amount: amt });
     setExpForm({ type: "otro", description: "", amount: "" });
