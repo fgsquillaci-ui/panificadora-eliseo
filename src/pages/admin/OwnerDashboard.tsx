@@ -291,12 +291,17 @@ const OwnerDashboard = () => {
   );
 };
 
-const KpiCard = ({ label, value, icon, color }: { label: string; value: string; icon: React.ReactNode; color: string }) => (
+const KpiCard = ({ label, value, icon, color, tooltip }: { label: string; value: string; icon: React.ReactNode; color: string; tooltip?: string }) => (
   <Card>
     <CardContent className="p-4">
       <div className="flex items-center gap-2 text-muted-foreground mb-1">
         {icon}
         <span className="text-xs font-body">{label}</span>
+        {tooltip && (
+          <TooltipProvider><Tooltip><TooltipTrigger>
+            <AlertCircle className="w-3 h-3 text-muted-foreground" />
+          </TooltipTrigger><TooltipContent><p className="text-xs max-w-48">{tooltip}</p></TooltipContent></Tooltip></TooltipProvider>
+        )}
       </div>
       <p className={`text-xl font-heading font-bold ${color}`}>{value}</p>
     </CardContent>
