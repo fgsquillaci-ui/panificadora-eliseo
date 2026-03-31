@@ -1,26 +1,17 @@
 
 
-## Reducir botones WhatsApp en móvil
+## Reemplazar logo en Hero y Header
 
 ### Cambios
 
-**1. `src/components/Hero.tsx` (línea 60)**
+1. Copiar `user-uploads://Logo.png` a `src/assets/logo.png` (reemplaza el actual)
+2. No se necesitan cambios en código — ambos archivos (`Hero.tsx` y `Header.tsx`) ya importan `from "@/assets/logo.png"`
 
-Reducir padding y texto en móvil usando clases responsive:
+El nuevo logo se aplicará automáticamente en todas las resoluciones (móvil, tablet, desktop).
 
-- `text-lg` → `text-base md:text-lg`
-- `px-10 py-4` → `px-7 py-3 md:px-10 md:py-4`
+### Archivos
 
-**2. `src/components/FinalCta.tsx` (línea 25)**
-
-Mismo ajuste:
-
-- `text-lg` → `text-base md:text-lg`
-- `px-12 py-5` → `px-8 py-3.5 md:px-12 md:py-5`
-- `gap-3` → `gap-2 md:gap-3`
-- Icono: `w-6 h-6` → `w-5 h-5 md:w-6 md:h-6`
-
-### Resultado
-
-Los botones se ven más proporcionados en pantallas pequeñas (390px) sin afectar la versión desktop.
+| Acción | Archivo |
+|--------|---------|
+| Reemplazar | `src/assets/logo.png` |
 
