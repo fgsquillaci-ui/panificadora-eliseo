@@ -39,17 +39,22 @@ export function useRecipes(productId?: string) {
 
   const fetch = useCallback(async () => {
     if (!productId) { setRecipes([]); setLoading(false); return; }
-    const { data } = await supabase.from("recipes").select("*, ingredients(name, unit, costo_unitario)").eq("product_id", productId);
-    const mapped = (data || []).map((r: any) => ({
-      id: r.id,
-      product_id: r.product_id,
-      ingredient_id: r.ingredient_id,
-      quantity: Number(r.quantity),
-      ingredient_name: r.ingredients?.name || "",
-      ingredient_unit: r.ingredients?.unit || "",
-      ingredient_cost: (r.ingredients?.costo_unitario || 0) / 100,
-      line_cost: Number(r.quantity) * ((r.ingredients?.costo_unitario || 0) / 100),
-    }));
+    const { data } = await supabase.from("recipes").select("*, ingredients(name, unit, costo_unitario, stock_actual)").eq("product_id", productId);
+    const mapped = (data || []).map((r: any) => {
+      const stock = r.ingredients?.stock_actual ?? 0;
+      return {
+        id: r.id,
+        product_id: r.product_id,
+        ingredient_id: r.ingredient_id,
+        quantity: Number(r.quantity),
+        ingredient_name: r.ingredients?.name || "",
+        ingredient_unit: r.ingredients?.unit || "",
+        ingredient_cost: (r.ingredients?.costo_unitario || 0) / 100,
+        ingredient_stock: stock,
+        line_cost: Number(r.quantity) * ((r.ingredients?.costo_unitario || 0) / 100),
+        noStock: stock === 0,
+      };
+    });
     setRecipes(mapped);
     setLoading(false);
   }, [productId]);
