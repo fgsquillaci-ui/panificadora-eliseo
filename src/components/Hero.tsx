@@ -35,7 +35,7 @@ const Hero = ({ onCtaClick }: { onCtaClick: () => void }) => {
           className="mt-4 text-sm tracking-widest"
           style={{ color: "#D6B37A" }}
         >
-          CALIDAD ARTESANAL
+          {"\n"}
         </motion.p>
 
         {/* Description */}
