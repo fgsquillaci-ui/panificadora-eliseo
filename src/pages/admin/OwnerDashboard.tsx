@@ -286,9 +286,15 @@ const OwnerDashboard = () => {
                           ) : <span className="text-muted-foreground text-xs">—</span>}
                         </td>
                         <td className="py-2 text-right text-muted-foreground">{p.targetMargin}%</td>
-                        <td className="py-2 text-right font-semibold">{fmt(p.suggestedPrice)}</td>
                         <td className="py-2 text-right">
-                          {p.price !== null && Math.abs(p.price - p.suggestedPrice) > 50 && (
+                          {p.price !== null && p.price >= p.suggestedPrice ? (
+                            <span className="text-green-600 text-sm font-medium">✔ Saludable</span>
+                          ) : (
+                            <span className="text-orange-600 font-semibold">{fmt(p.suggestedPrice)}</span>
+                          )}
+                        </td>
+                        <td className="py-2 text-right">
+                          {p.price !== null && p.price < p.suggestedPrice - 50 && (
                             <Button size="sm" variant="outline" onClick={() => applySuggestedPrice(p.id, p.suggestedPrice)}>
                               Aplicar
                             </Button>
