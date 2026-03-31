@@ -3,7 +3,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";  // still used in CostAnalysis
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useFinancialData, type Period } from "@/hooks/useFinancialData";
@@ -13,7 +13,7 @@ import { usePurchases } from "@/hooks/usePurchases";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Plus, Percent, Wallet, BarChart3, RefreshCw, Tag, AlertCircle } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Percent, Wallet, BarChart3, RefreshCw, Tag, AlertCircle } from "lucide-react";
 import { formatCurrency } from "@/utils/currency";
 
 const fmt = formatCurrency;
@@ -86,33 +86,6 @@ const OwnerDashboard = () => {
   const highExpenses = revenue > 0 && expenses > revenue * 0.5;
   const negativeMarginPricing = pricingData.filter(p => p.currentMargin !== null && p.currentMargin < 0);
 
-  // Expense form
-  const [expOpen, setExpOpen] = useState(false);
-  const [expForm, setExpForm] = useState({ type: "otro", description: "", amount: "" });
-  const handleExpense = async () => {
-    const amt = Math.round(parseFloat(expForm.amount) || 0);
-    if (!amt || !expForm.description) { toast.error("Completá todos los campos"); return; }
-    await supabase.from("expenses").insert({ type: expForm.type, description: expForm.description, amount: amt });
-    setExpForm({ type: "otro", description: "", amount: "" });
-    setExpOpen(false);
-    toast.success("Gasto registrado");
-  };
-
-  // Cash movement form
-  const [cashOpen, setCashOpen] = useState(false);
-  const [cashForm, setCashForm] = useState({ type: "ingreso", description: "", amount: "" });
-  const handleCash = async () => {
-    const amt = Math.round(parseFloat(cashForm.amount) || 0);
-    if (!amt || !cashForm.description) { toast.error("Completá todos los campos"); return; }
-    if (cashForm.type === "retiro" && amt > available) {
-      toast.error("El retiro supera el dinero disponible");
-      return;
-    }
-    await supabase.from("cash_movements").insert({ type: cashForm.type, description: cashForm.description, amount: amt });
-    setCashForm({ type: "ingreso", description: "", amount: "" });
-    setCashOpen(false);
-    toast.success("Movimiento registrado");
-  };
 
   const applySuggestedPrice = async (productId: string, suggestedPrice: number) => {
     const priceColumn = tierFilter === "mayorista" ? "wholesale_price" : tierFilter === "intermedio" ? "intermediate_price" : "retail_price";
@@ -312,91 +285,6 @@ const OwnerDashboard = () => {
         {/* Cost Analysis */}
         <CostAnalysisSection ingredients={ingredients} purchases={allPurchases} onUpdateCost={updateIngredient} />
 
-        {/* Cash & Expenses */}
-        <div className="grid md:grid-cols-2 gap-4">
-          {/* Cash Movements */}
-          <Card>
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-heading">Flujo de caja</CardTitle>
-              <Dialog open={cashOpen} onOpenChange={setCashOpen}>
-                <DialogTrigger asChild><Button size="sm" variant="outline"><Plus className="w-3 h-3 mr-1" /> Movimiento</Button></DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>Nuevo movimiento</DialogTitle></DialogHeader>
-                  <div className="space-y-3">
-                    <Select value={cashForm.type} onValueChange={v => setCashForm(f => ({ ...f, type: v }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ingreso">Ingreso</SelectItem>
-                        <SelectItem value="egreso">Egreso</SelectItem>
-                        <SelectItem value="retiro">Retiro personal</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input placeholder="Descripción" value={cashForm.description} onChange={e => setCashForm(f => ({ ...f, description: e.target.value }))} />
-                    <Input type="number" placeholder="Monto ($)" value={cashForm.amount} onChange={e => setCashForm(f => ({ ...f, amount: e.target.value }))} />
-                    <Button onClick={handleCash} className="w-full">Registrar</Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent>
-              {cashMovements.length === 0 ? <p className="text-sm text-muted-foreground">Sin movimientos</p> : (
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {cashMovements.slice(0, 20).map(m => (
-                    <div key={m.id} className="flex justify-between items-center text-sm border-b pb-1">
-                      <div>
-                        <Badge variant={m.type === "ingreso" ? "default" : m.type === "retiro" ? "destructive" : "secondary"} className="text-xs mr-2">{m.type}</Badge>
-                        <span className="font-body">{m.description}</span>
-                      </div>
-                      <span className={`font-medium ${m.type === "ingreso" ? "text-green-600" : "text-destructive"}`}>{fmt(m.amount)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Expenses */}
-          <Card>
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-heading">Gastos</CardTitle>
-              <Dialog open={expOpen} onOpenChange={setExpOpen}>
-                <DialogTrigger asChild><Button size="sm" variant="outline"><Plus className="w-3 h-3 mr-1" /> Gasto</Button></DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>Nuevo gasto</DialogTitle></DialogHeader>
-                  <div className="space-y-3">
-                    <Select value={expForm.type} onValueChange={v => setExpForm(f => ({ ...f, type: v }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="insumo">Insumo</SelectItem>
-                        <SelectItem value="servicio">Servicio</SelectItem>
-                        <SelectItem value="salario">Salario</SelectItem>
-                        <SelectItem value="otro">Otro</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input placeholder="Descripción" value={expForm.description} onChange={e => setExpForm(f => ({ ...f, description: e.target.value }))} />
-                    <Input type="number" placeholder="Monto ($)" value={expForm.amount} onChange={e => setExpForm(f => ({ ...f, amount: e.target.value }))} />
-                    <Button onClick={handleExpense} className="w-full">Registrar gasto</Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent>
-              {expensesList.length === 0 ? <p className="text-sm text-muted-foreground">Sin gastos</p> : (
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {expensesList.slice(0, 20).map(e => (
-                    <div key={e.id} className="flex justify-between items-center text-sm border-b pb-1">
-                      <div>
-                        <Badge variant="secondary" className="text-xs mr-2">{e.type}</Badge>
-                        <span className="font-body">{e.description}</span>
-                      </div>
-                      <span className="font-medium text-destructive">{fmt(e.amount)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </DashboardLayout>
   );

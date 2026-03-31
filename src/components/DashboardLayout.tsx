@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useRole, type AppRole } from "@/hooks/useRole";
-import { LogOut, LayoutDashboard, Package, Users, Truck, Home, UserRound, DollarSign, Wheat, BookOpen } from "lucide-react";
+import { LogOut, LayoutDashboard, Package, Users, Truck, Home, UserRound, DollarSign, Wheat, BookOpen, Receipt } from "lucide-react";
 import logo from "@/assets/logo.png";
 
 interface NavItem {
@@ -19,6 +19,7 @@ const allNavItems: NavItem[] = [
   { label: "Finanzas", path: "/admin/finanzas", icon: <DollarSign className="w-4 h-4" />, roles: ["admin"] },
   { label: "Materia Prima", path: "/admin/ingredientes", icon: <Wheat className="w-4 h-4" />, roles: ["admin"] },
   { label: "Recetas", path: "/admin/recetas", icon: <BookOpen className="w-4 h-4" />, roles: ["admin"] },
+  { label: "Gastos", path: "/admin/gastos", icon: <Receipt className="w-4 h-4" />, roles: ["admin"] },
   { label: "Mis Pedidos", path: "/revendedor", icon: <Package className="w-4 h-4" />, roles: ["revendedor"] },
   { label: "Mis Clientes", path: "/revendedor/clientes", icon: <UserRound className="w-4 h-4" />, roles: ["revendedor"] },
   { label: "Entregas", path: "/delivery", icon: <Truck className="w-4 h-4" />, roles: ["delivery"] },

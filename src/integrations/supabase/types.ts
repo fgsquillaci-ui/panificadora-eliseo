@@ -133,27 +133,48 @@ export type Database = {
       expenses: {
         Row: {
           amount: number
+          batch_id: string | null
+          category: string
           created_at: string
           date: string
           description: string
           id: string
+          ingredient_id: string | null
+          payment_method: string
+          quantity: number | null
+          supplier: string | null
           type: string
+          unit_price: number | null
         }
         Insert: {
           amount?: number
+          batch_id?: string | null
+          category?: string
           created_at?: string
           date?: string
           description?: string
           id?: string
+          ingredient_id?: string | null
+          payment_method?: string
+          quantity?: number | null
+          supplier?: string | null
           type?: string
+          unit_price?: number | null
         }
         Update: {
           amount?: number
+          batch_id?: string | null
+          category?: string
           created_at?: string
           date?: string
           description?: string
           id?: string
+          ingredient_id?: string | null
+          payment_method?: string
+          quantity?: number | null
+          supplier?: string | null
           type?: string
+          unit_price?: number | null
         }
         Relationships: []
       }

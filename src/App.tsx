@@ -16,6 +16,7 @@ import AdminCustomers from "./pages/admin/Customers.tsx";
 import OwnerDashboard from "./pages/admin/OwnerDashboard.tsx";
 import IngredientsPage from "./pages/admin/Ingredients.tsx";
 import RecipesPage from "./pages/admin/Recipes.tsx";
+import ExpensesPage from "./pages/admin/Expenses.tsx";
 import RevendedorDashboard from "./pages/revendedor/Dashboard.tsx";
 import RevendedorCustomers from "./pages/revendedor/Customers.tsx";
 import DeliveryDashboard from "./pages/delivery/Dashboard.tsx";
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/admin/finanzas" element={<ProtectedRoute allowedRoles={["admin"]}><OwnerDashboard /></ProtectedRoute>} />
             <Route path="/admin/ingredientes" element={<ProtectedRoute allowedRoles={["admin"]}><IngredientsPage /></ProtectedRoute>} />
             <Route path="/admin/recetas" element={<ProtectedRoute allowedRoles={["admin"]}><RecipesPage /></ProtectedRoute>} />
+            <Route path="/admin/gastos" element={<ProtectedRoute allowedRoles={["admin"]}><ExpensesPage /></ProtectedRoute>} />
 
             {/* Revendedor routes */}
             <Route path="/revendedor" element={<ProtectedRoute allowedRoles={["revendedor"]}><RevendedorDashboard /></ProtectedRoute>} />
