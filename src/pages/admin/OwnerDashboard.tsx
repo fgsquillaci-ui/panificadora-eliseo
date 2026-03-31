@@ -102,7 +102,7 @@ const OwnerDashboard = () => {
   const [cashOpen, setCashOpen] = useState(false);
   const [cashForm, setCashForm] = useState({ type: "ingreso", description: "", amount: "" });
   const handleCash = async () => {
-    const amt = Math.round(parseFloat(cashForm.amount) * 100);
+    const amt = Math.round(parseFloat(cashForm.amount) || 0);
     if (!amt || !cashForm.description) { toast.error("Completá todos los campos"); return; }
     if (cashForm.type === "retiro" && amt > available) {
       toast.error("El retiro supera el dinero disponible");
