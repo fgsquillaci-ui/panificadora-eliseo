@@ -86,33 +86,6 @@ const OwnerDashboard = () => {
   const highExpenses = revenue > 0 && expenses > revenue * 0.5;
   const negativeMarginPricing = pricingData.filter(p => p.currentMargin !== null && p.currentMargin < 0);
 
-  // Expense form
-  const [expOpen, setExpOpen] = useState(false);
-  const [expForm, setExpForm] = useState({ type: "otro", description: "", amount: "" });
-  const handleExpense = async () => {
-    const amt = Math.round(parseFloat(expForm.amount) || 0);
-    if (!amt || !expForm.description) { toast.error("Completá todos los campos"); return; }
-    await supabase.from("expenses").insert({ type: expForm.type, description: expForm.description, amount: amt });
-    setExpForm({ type: "otro", description: "", amount: "" });
-    setExpOpen(false);
-    toast.success("Gasto registrado");
-  };
-
-  // Cash movement form
-  const [cashOpen, setCashOpen] = useState(false);
-  const [cashForm, setCashForm] = useState({ type: "ingreso", description: "", amount: "" });
-  const handleCash = async () => {
-    const amt = Math.round(parseFloat(cashForm.amount) || 0);
-    if (!amt || !cashForm.description) { toast.error("Completá todos los campos"); return; }
-    if (cashForm.type === "retiro" && amt > available) {
-      toast.error("El retiro supera el dinero disponible");
-      return;
-    }
-    await supabase.from("cash_movements").insert({ type: cashForm.type, description: cashForm.description, amount: amt });
-    setCashForm({ type: "ingreso", description: "", amount: "" });
-    setCashOpen(false);
-    toast.success("Movimiento registrado");
-  };
 
   const applySuggestedPrice = async (productId: string, suggestedPrice: number) => {
     const priceColumn = tierFilter === "mayorista" ? "wholesale_price" : tierFilter === "intermedio" ? "intermediate_price" : "retail_price";
