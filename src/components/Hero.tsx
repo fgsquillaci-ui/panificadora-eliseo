@@ -57,7 +57,7 @@ const Hero = ({ onCtaClick }: { onCtaClick: () => void }) => {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onCtaClick}
-          className="mt-8 bg-whatsapp text-whatsapp-foreground font-body font-semibold text-lg px-10 py-4 rounded-full shadow-lg hover:shadow-xl transition-shadow"
+          className="mt-8 bg-whatsapp text-whatsapp-foreground font-body font-semibold text-base md:text-lg px-7 py-3 md:px-10 md:py-4 rounded-full shadow-lg hover:shadow-xl transition-shadow"
         >
           🛒 Pedir por WhatsApp
         </motion.button>

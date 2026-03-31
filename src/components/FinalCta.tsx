@@ -22,7 +22,7 @@ const FinalCta = () => (
         rel="noopener noreferrer"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        className="inline-flex items-center gap-3 bg-whatsapp text-whatsapp-foreground font-body font-bold text-lg px-12 py-5 rounded-full shadow-xl hover:shadow-2xl transition-shadow"
+        className="inline-flex items-center gap-2 md:gap-3 bg-whatsapp text-whatsapp-foreground font-body font-bold text-base md:text-lg px-8 py-3.5 md:px-12 md:py-5 rounded-full shadow-xl hover:shadow-2xl transition-shadow"
       >
         <MessageCircle className="w-6 h-6" />
         Pedir por WhatsApp
