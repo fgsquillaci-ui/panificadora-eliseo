@@ -48,7 +48,14 @@ export function useExpenses(categoryFilter?: string) {
     }
 
     const { data } = await query;
-    setExpenses((data as unknown as Expense[]) || []);
+    const items = (data as unknown as Expense[]) || [];
+    // Validation: warn on orphan materia_prima expenses
+    items.forEach(e => {
+      if (e.category === "materia_prima" && !e.batch_id) {
+        console.warn("Orphan materia_prima expense (no batch_id)", e.id);
+      }
+    });
+    setExpenses(items);
     setLoading(false);
   }, [categoryFilter]);
 

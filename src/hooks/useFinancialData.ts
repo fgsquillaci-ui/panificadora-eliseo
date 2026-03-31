@@ -17,6 +17,7 @@ function getPeriodStart(period: Period): string {
 export function useFinancialData(period: Period, tierFilter: TierFilter = null) {
   const [revenue, setRevenue] = useState(0);
   const [estimatedCost, setEstimatedCost] = useState(0);
+  const [realCost, setRealCost] = useState(0);
   const [expenses, setExpenses] = useState(0);
   const [cashMovements, setCashMovements] = useState<any[]>([]);
   const [expensesList, setExpensesList] = useState<any[]>([]);
@@ -52,6 +53,7 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
 
     let totalRevenue = 0;
     let totalCost = 0;
+    let totalRealCost = 0;
     items.forEach((item) => {
       const qty = item.quantity ?? 0;
       const itemTotal = item.total && item.total > 0 ? item.total : (item.unit_price ?? 0) * qty;
@@ -61,12 +63,21 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
       if (unitCost > 0) {
         totalCost += unitCost * qty;
       }
+
+      // Real cost from FIFO cost_snapshot (total line cost)
+      const costSnap = item.cost_snapshot ?? 0;
+      if (costSnap > 0) {
+        totalRealCost += costSnap;
+      } else {
+        console.warn("Delivered order item missing cost_snapshot", item);
+      }
     });
 
     const totalExpenses = (expensesRes.data || []).reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
 
     setRevenue(totalRevenue);
     setEstimatedCost(totalCost);
+    setRealCost(totalRealCost);
     setExpenses(totalExpenses);
     setExpensesList(expensesRes.data || []);
     setCashMovements(cashRes.data || []);
@@ -88,5 +99,7 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
   const totalCashOut = cashMovements.filter(m => m.type !== "ingreso").reduce((s, m) => s + m.amount, 0);
   const totalWithdrawals = cashMovements.filter(m => m.type === "retiro").reduce((s, m) => s + m.amount, 0);
 
-  return { revenue, estimatedCost, expenses, expensesList, cashMovements, totalCashIn, totalCashOut, totalWithdrawals, loading, refetch: fetchData };
+  const realProfit = revenue - realCost - expenses;
+
+  return { revenue, estimatedCost, realCost, realProfit, expenses, expensesList, cashMovements, totalCashIn, totalCashOut, totalWithdrawals, loading, refetch: fetchData };
 }

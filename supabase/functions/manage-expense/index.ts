@@ -50,19 +50,41 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action } = body;
 
-    if (action === "create") {
-      return await handleCreate(supabase, body, corsHeaders);
-    } else if (action === "delete") {
-      return await handleDelete(supabase, body, corsHeaders);
-    } else if (action === "update") {
-      return await handleUpdate(supabase, body, corsHeaders);
-    }
+    // Use postgresjs for atomic transactions
+    const dbUrl = Deno.env.get("SUPABASE_DB_URL")!;
+    const { default: postgres } = await import("https://deno.land/x/postgresjs@v3.4.5/mod.js");
+    const sql = postgres(dbUrl, { max: 1 });
 
-    return new Response(JSON.stringify({ error: "Invalid action" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (err) {
+    try {
+      let result: any;
+      if (action === "create") {
+        result = await handleCreate(sql, body);
+      } else if (action === "delete") {
+        result = await handleDelete(sql, body);
+      } else if (action === "update") {
+        result = await handleUpdate(sql, body);
+      } else {
+        await sql.end();
+        return new Response(JSON.stringify({ error: "Invalid action" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      await sql.end();
+      return new Response(JSON.stringify(result), {
+        status: result.error ? result.status || 400 : 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    } catch (dbError: any) {
+      await sql.end();
+      console.error("Transaction failed:", dbError);
+      return new Response(
+        JSON.stringify({ error: dbError.message || "Transaction error" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+  } catch (err: any) {
     console.error("manage-expense error:", err);
     return new Response(JSON.stringify({ error: err.message || "Internal error" }), {
       status: 500,
@@ -71,308 +93,183 @@ Deno.serve(async (req) => {
   }
 });
 
-async function cascadeResync(supabase: any, ingredientId: string) {
-  const { data: batches } = await supabase
-    .from("ingredient_batches")
-    .select("quantity_remaining, unit_cost")
-    .eq("ingredient_id", ingredientId)
-    .gt("quantity_remaining", 0);
+async function cascadeResync(tx: any, ingredientId: string) {
+  // Recalc stock
+  const [stockRow] = await tx`
+    SELECT COALESCE(SUM(quantity_remaining), 0) as total_stock
+    FROM public.ingredient_batches
+    WHERE ingredient_id = ${ingredientId}
+  `;
+  // Recalc weighted avg cost (pesos → cents for costo_unitario)
+  const [costRow] = await tx`
+    SELECT CASE WHEN SUM(quantity_remaining) > 0
+      THEN ROUND(SUM(quantity_remaining * unit_cost) / SUM(quantity_remaining) * 100)
+      ELSE 0 END as avg_cost_cents
+    FROM public.ingredient_batches
+    WHERE ingredient_id = ${ingredientId} AND quantity_remaining > 0
+  `;
 
-  const remaining = batches || [];
-  const totalStock = remaining.reduce((s: number, b: any) => s + Number(b.quantity_remaining), 0);
-  const totalValue = remaining.reduce(
-    (s: number, b: any) => s + Number(b.quantity_remaining) * Number(b.unit_cost),
-    0
-  );
-  const weightedAvgPesos = totalStock > 0 ? totalValue / totalStock : 0;
-  const costoUnitarioCents = Math.round(weightedAvgPesos * 100);
+  await tx`
+    UPDATE public.ingredients
+    SET stock_actual = ${Number(stockRow.total_stock)},
+        costo_unitario = ${Number(costRow.avg_cost_cents)}
+    WHERE id = ${ingredientId}
+  `;
 
-  await supabase
-    .from("ingredients")
-    .update({ stock_actual: totalStock, costo_unitario: costoUnitarioCents })
-    .eq("id", ingredientId);
-
-  const { data: recipeRows } = await supabase
-    .from("recipes")
-    .select("product_id")
-    .eq("ingredient_id", ingredientId);
-
-  const productIds = [...new Set((recipeRows || []).map((r: any) => r.product_id))];
-
-  for (const productId of productIds) {
-    const { data: recipeLines } = await supabase
-      .from("recipes")
-      .select("quantity, ingredients(costo_unitario)")
-      .eq("product_id", productId);
-
-    const unitCost = (recipeLines || []).reduce((s: number, r: any) => {
-      const costoUnitario = r.ingredients?.costo_unitario || 0;
-      return s + Number(r.quantity) * (costoUnitario / 100);
-    }, 0);
-
-    await supabase
-      .from("products")
-      .update({ unit_cost: Math.round(unitCost) })
-      .eq("id", productId);
+  // Resync products using this ingredient
+  const affectedProducts = await tx`
+    SELECT DISTINCT product_id FROM public.recipes WHERE ingredient_id = ${ingredientId}
+  `;
+  for (const { product_id } of affectedProducts) {
+    const [costCalc] = await tx`
+      SELECT COALESCE(SUM(r.quantity * (i.costo_unitario / 100.0)), 0) as unit_cost
+      FROM public.recipes r
+      JOIN public.ingredients i ON i.id = r.ingredient_id
+      WHERE r.product_id = ${product_id}
+    `;
+    await tx`
+      UPDATE public.products SET unit_cost = ROUND(${Number(costCalc.unit_cost)})
+      WHERE id = ${product_id}
+    `;
   }
 }
 
-async function handleCreate(supabase: any, body: any, headers: Record<string, string>) {
+async function handleCreate(sql: any, body: any) {
   const { category, description, date, payment_method, supplier, ingredient_id, quantity, unit_price, amount } = body;
 
   if (category === "materia_prima") {
     if (!ingredient_id || !quantity || quantity <= 0 || !unit_price || unit_price <= 0) {
-      return new Response(
-        JSON.stringify({ error: "materia_prima requiere ingredient_id, quantity > 0, unit_price > 0" }),
-        { status: 400, headers: { ...headers, "Content-Type": "application/json" } }
-      );
+      return { error: "materia_prima requiere ingredient_id, quantity > 0, unit_price > 0", status: 400 };
     }
 
     const computedAmount = Math.round(quantity * unit_price);
+    const expDate = date || new Date().toISOString().split("T")[0];
 
-    // 1. Insert expense
-    const { data: expense, error: expError } = await supabase
-      .from("expenses")
-      .insert({
-        category,
-        type: category,
-        description: description || "",
-        date: date || new Date().toISOString().split("T")[0],
-        payment_method: payment_method || "efectivo",
-        supplier: supplier || "",
-        ingredient_id,
-        quantity,
-        unit_price,
-        amount: computedAmount,
-      })
-      .select("id")
-      .single();
+    const result = await sql.begin(async (tx: any) => {
+      // 1. Insert expense
+      const [expense] = await tx`
+        INSERT INTO public.expenses (category, type, description, date, payment_method, supplier, ingredient_id, quantity, unit_price, amount)
+        VALUES (${category}, ${category}, ${description || ""}, ${expDate}, ${payment_method || "efectivo"}, ${supplier || ""}, ${ingredient_id}, ${quantity}, ${unit_price}, ${computedAmount})
+        RETURNING id
+      `;
 
-    if (expError) {
-      return new Response(JSON.stringify({ error: expError.message }), {
-        status: 500,
-        headers: { ...headers, "Content-Type": "application/json" },
-      });
-    }
+      // 2. Insert batch
+      const [batch] = await tx`
+        INSERT INTO public.ingredient_batches (ingredient_id, quantity_total, quantity_remaining, unit_cost, purchase_date, supplier)
+        VALUES (${ingredient_id}, ${quantity}, ${quantity}, ${unit_price}, ${expDate}, ${supplier || ""})
+        RETURNING id
+      `;
 
-    // 2. Insert batch
-    const { data: batch, error: batchError } = await supabase
-      .from("ingredient_batches")
-      .insert({
-        ingredient_id,
-        quantity_total: quantity,
-        quantity_remaining: quantity,
-        unit_cost: unit_price,
-        purchase_date: date || new Date().toISOString().split("T")[0],
-        supplier: supplier || "",
-      })
-      .select("id")
-      .single();
+      // 3. Link batch_id
+      await tx`UPDATE public.expenses SET batch_id = ${batch.id} WHERE id = ${expense.id}`;
 
-    if (batchError) {
-      // Rollback: delete expense
-      await supabase.from("expenses").delete().eq("id", expense.id);
-      return new Response(JSON.stringify({ error: batchError.message }), {
-        status: 500,
-        headers: { ...headers, "Content-Type": "application/json" },
-      });
-    }
+      // 4. Cascade resync (inside same transaction)
+      await cascadeResync(tx, ingredient_id);
 
-    // 3. Link batch_id to expense
-    await supabase.from("expenses").update({ batch_id: batch.id }).eq("id", expense.id);
-
-    // 4. Cascade resync
-    await cascadeResync(supabase, ingredient_id);
-
-    return new Response(JSON.stringify({ success: true, id: expense.id }), {
-      headers: { ...headers, "Content-Type": "application/json" },
+      return { success: true, id: expense.id };
     });
+
+    return result;
   }
 
   // Non-materia_prima
   if (!amount || amount <= 0) {
-    return new Response(JSON.stringify({ error: "amount > 0 requerido" }), {
-      status: 400,
-      headers: { ...headers, "Content-Type": "application/json" },
-    });
+    return { error: "amount > 0 requerido", status: 400 };
   }
 
-  const { data: expense, error } = await supabase
-    .from("expenses")
-    .insert({
-      category,
-      type: category,
-      description: description || "",
-      date: date || new Date().toISOString().split("T")[0],
-      payment_method: payment_method || "efectivo",
-      supplier: supplier || "",
-      amount: Math.round(amount),
-      ingredient_id: null,
-      quantity: null,
-      unit_price: null,
-      batch_id: null,
-    })
-    .select("id")
-    .single();
-
-  if (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...headers, "Content-Type": "application/json" },
-    });
-  }
-
-  return new Response(JSON.stringify({ success: true, id: expense.id }), {
-    headers: { ...headers, "Content-Type": "application/json" },
+  const expDate = date || new Date().toISOString().split("T")[0];
+  const result = await sql.begin(async (tx: any) => {
+    const [expense] = await tx`
+      INSERT INTO public.expenses (category, type, description, date, payment_method, supplier, amount, ingredient_id, quantity, unit_price, batch_id)
+      VALUES (${category}, ${category}, ${description || ""}, ${expDate}, ${payment_method || "efectivo"}, ${supplier || ""}, ${Math.round(amount)}, ${null}, ${null}, ${null}, ${null})
+      RETURNING id
+    `;
+    return { success: true, id: expense.id };
   });
+
+  return result;
 }
 
-async function handleDelete(supabase: any, body: any, headers: Record<string, string>) {
+async function handleDelete(sql: any, body: any) {
   const { expense_id } = body;
-  if (!expense_id) {
-    return new Response(JSON.stringify({ error: "expense_id requerido" }), {
-      status: 400,
-      headers: { ...headers, "Content-Type": "application/json" },
-    });
-  }
+  if (!expense_id) return { error: "expense_id requerido", status: 400 };
 
-  const { data: expense } = await supabase
-    .from("expenses")
-    .select("*")
-    .eq("id", expense_id)
-    .single();
+  const result = await sql.begin(async (tx: any) => {
+    const [expense] = await tx`SELECT * FROM public.expenses WHERE id = ${expense_id}`;
+    if (!expense) throw new Error("Gasto no encontrado");
 
-  if (!expense) {
-    return new Response(JSON.stringify({ error: "Gasto no encontrado" }), {
-      status: 404,
-      headers: { ...headers, "Content-Type": "application/json" },
-    });
-  }
-
-  // If materia_prima with batch, delete batch and resync
-  if (expense.batch_id) {
-    const ingredientId = expense.ingredient_id;
-    await supabase.from("ingredient_batches").delete().eq("id", expense.batch_id);
-    if (ingredientId) {
-      await cascadeResync(supabase, ingredientId);
+    // If materia_prima with batch, delete batch and resync
+    if (expense.batch_id) {
+      await tx`DELETE FROM public.ingredient_batches WHERE id = ${expense.batch_id}`;
+      if (expense.ingredient_id) {
+        await cascadeResync(tx, expense.ingredient_id);
+      }
     }
-  }
 
-  await supabase.from("expenses").delete().eq("id", expense_id);
-
-  return new Response(JSON.stringify({ success: true }), {
-    headers: { ...headers, "Content-Type": "application/json" },
+    await tx`DELETE FROM public.expenses WHERE id = ${expense_id}`;
+    return { success: true };
   });
+
+  return result;
 }
 
-async function handleUpdate(supabase: any, body: any, headers: Record<string, string>) {
+async function handleUpdate(sql: any, body: any) {
   const { expense_id, category, description, date, payment_method, supplier, ingredient_id, quantity, unit_price, amount } = body;
+  if (!expense_id) return { error: "expense_id requerido", status: 400 };
 
-  if (!expense_id) {
-    return new Response(JSON.stringify({ error: "expense_id requerido" }), {
-      status: 400,
-      headers: { ...headers, "Content-Type": "application/json" },
-    });
-  }
+  const result = await sql.begin(async (tx: any) => {
+    const [oldExpense] = await tx`SELECT * FROM public.expenses WHERE id = ${expense_id}`;
+    if (!oldExpense) throw new Error("Gasto no encontrado");
 
-  const { data: oldExpense } = await supabase
-    .from("expenses")
-    .select("*")
-    .eq("id", expense_id)
-    .single();
-
-  if (!oldExpense) {
-    return new Response(JSON.stringify({ error: "Gasto no encontrado" }), {
-      status: 404,
-      headers: { ...headers, "Content-Type": "application/json" },
-    });
-  }
-
-  // Remove old batch if existed
-  if (oldExpense.batch_id) {
-    const oldIngredientId = oldExpense.ingredient_id;
-    await supabase.from("ingredient_batches").delete().eq("id", oldExpense.batch_id);
-    if (oldIngredientId) {
-      await cascadeResync(supabase, oldIngredientId);
-    }
-  }
-
-  if (category === "materia_prima") {
-    if (!ingredient_id || !quantity || quantity <= 0 || !unit_price || unit_price <= 0) {
-      return new Response(
-        JSON.stringify({ error: "materia_prima requiere ingredient_id, quantity > 0, unit_price > 0" }),
-        { status: 400, headers: { ...headers, "Content-Type": "application/json" } }
-      );
+    // Remove old batch if existed
+    if (oldExpense.batch_id) {
+      await tx`DELETE FROM public.ingredient_batches WHERE id = ${oldExpense.batch_id}`;
+      if (oldExpense.ingredient_id) {
+        await cascadeResync(tx, oldExpense.ingredient_id);
+      }
     }
 
-    const computedAmount = Math.round(quantity * unit_price);
+    if (category === "materia_prima") {
+      if (!ingredient_id || !quantity || quantity <= 0 || !unit_price || unit_price <= 0) {
+        throw new Error("materia_prima requiere ingredient_id, quantity > 0, unit_price > 0");
+      }
 
-    // Create new batch
-    const { data: batch, error: batchError } = await supabase
-      .from("ingredient_batches")
-      .insert({
-        ingredient_id,
-        quantity_total: quantity,
-        quantity_remaining: quantity,
-        unit_cost: unit_price,
-        purchase_date: date || new Date().toISOString().split("T")[0],
-        supplier: supplier || "",
-      })
-      .select("id")
-      .single();
+      const computedAmount = Math.round(quantity * unit_price);
+      const expDate = date || oldExpense.date;
 
-    if (batchError) {
-      return new Response(JSON.stringify({ error: batchError.message }), {
-        status: 500,
-        headers: { ...headers, "Content-Type": "application/json" },
-      });
+      // Create new batch
+      const [batch] = await tx`
+        INSERT INTO public.ingredient_batches (ingredient_id, quantity_total, quantity_remaining, unit_cost, purchase_date, supplier)
+        VALUES (${ingredient_id}, ${quantity}, ${quantity}, ${unit_price}, ${expDate}, ${supplier || ""})
+        RETURNING id
+      `;
+
+      await tx`
+        UPDATE public.expenses SET
+          category = ${category}, type = ${category}, description = ${description || ""},
+          date = ${expDate}, payment_method = ${payment_method || "efectivo"},
+          supplier = ${supplier || ""}, ingredient_id = ${ingredient_id},
+          quantity = ${quantity}, unit_price = ${unit_price},
+          amount = ${computedAmount}, batch_id = ${batch.id}
+        WHERE id = ${expense_id}
+      `;
+
+      await cascadeResync(tx, ingredient_id);
+    } else {
+      if (!amount || amount <= 0) throw new Error("amount > 0 requerido");
+
+      await tx`
+        UPDATE public.expenses SET
+          category = ${category}, type = ${category}, description = ${description || ""},
+          date = ${date || oldExpense.date}, payment_method = ${payment_method || "efectivo"},
+          supplier = ${supplier || ""}, amount = ${Math.round(amount)},
+          ingredient_id = ${null}, quantity = ${null}, unit_price = ${null}, batch_id = ${null}
+        WHERE id = ${expense_id}
+      `;
     }
 
-    await supabase
-      .from("expenses")
-      .update({
-        category,
-        type: category,
-        description: description || "",
-        date: date || oldExpense.date,
-        payment_method: payment_method || "efectivo",
-        supplier: supplier || "",
-        ingredient_id,
-        quantity,
-        unit_price,
-        amount: computedAmount,
-        batch_id: batch.id,
-      })
-      .eq("id", expense_id);
-
-    await cascadeResync(supabase, ingredient_id);
-  } else {
-    if (!amount || amount <= 0) {
-      return new Response(JSON.stringify({ error: "amount > 0 requerido" }), {
-        status: 400,
-        headers: { ...headers, "Content-Type": "application/json" },
-      });
-    }
-
-    await supabase
-      .from("expenses")
-      .update({
-        category,
-        type: category,
-        description: description || "",
-        date: date || oldExpense.date,
-        payment_method: payment_method || "efectivo",
-        supplier: supplier || "",
-        amount: Math.round(amount),
-        ingredient_id: null,
-        quantity: null,
-        unit_price: null,
-        batch_id: null,
-      })
-      .eq("id", expense_id);
-  }
-
-  return new Response(JSON.stringify({ success: true }), {
-    headers: { ...headers, "Content-Type": "application/json" },
+    return { success: true };
   });
+
+  return result;
 }

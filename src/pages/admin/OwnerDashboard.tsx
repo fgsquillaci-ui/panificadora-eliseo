@@ -21,7 +21,7 @@ const fmt = formatCurrency;
 const OwnerDashboard = () => {
   const [period, setPeriod] = useState<Period>("hoy");
   const [tierFilter, setTierFilter] = useState<TierFilter>(null);
-  const { revenue, expenses, expensesList, cashMovements, totalWithdrawals, loading } = useFinancialData(period, tierFilter);
+  const { revenue, expenses, realCost, realProfit, expensesList, cashMovements, totalWithdrawals, loading } = useFinancialData(period, tierFilter);
   const { products, estimatedCost, loading: profitLoading } = useProductProfitability(period, tierFilter);
   const { ingredients, lowStock, update: updateIngredient } = useIngredients();
   const { purchases: allPurchases } = usePurchases();
@@ -77,9 +77,9 @@ const OwnerDashboard = () => {
     fetchPricing();
   }, [ingredients, tierFilter]);
 
-  const profit = revenue - estimatedCost - expenses;
+  const estimatedProfit = revenue - estimatedCost - expenses;
   const margin = revenue > 0 ? ((revenue - estimatedCost) / revenue) * 100 : 0;
-  const available = Math.max(0, profit - totalWithdrawals);
+  const available = Math.max(0, realProfit - totalWithdrawals);
 
   // Alerts
   const lowMarginProducts = products.filter(p => p.hasRecipe && p.margin !== null && p.margin < 20 && p.margin >= 0);
@@ -128,10 +128,11 @@ const OwnerDashboard = () => {
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
           <KpiCard label="Ingresos" value={fmt(revenue)} icon={<DollarSign className="w-4 h-4" />} color="text-green-600" />
-          <KpiCard label="Costos est." value={fmt(estimatedCost + expenses)} icon={<TrendingDown className="w-4 h-4" />} color="text-orange-500" />
-          <KpiCard label="Ganancia" value={fmt(profit)} icon={<TrendingUp className="w-4 h-4" />} color={profit >= 0 ? "text-green-600" : "text-destructive"} />
+          <KpiCard label="Costos est." value={fmt(estimatedCost + expenses)} icon={<TrendingDown className="w-4 h-4" />} color="text-orange-500" tooltip="Proyección basada en costo actual de recetas" />
+          <KpiCard label="Ganancia est." value={fmt(estimatedProfit)} icon={<TrendingUp className="w-4 h-4" />} color={estimatedProfit >= 0 ? "text-green-600" : "text-destructive"} tooltip="Proyección basada en costo actual de recetas" />
+          <KpiCard label="Ganancia real" value={fmt(realProfit)} icon={<TrendingUp className="w-4 h-4" />} color={realProfit >= 0 ? "text-green-600" : "text-destructive"} tooltip="Basada en costo histórico real (FIFO) de cada pedido" />
           <KpiCard label="Margen" value={`${margin.toFixed(1)}%`} icon={<Percent className="w-4 h-4" />} color={margin >= 30 ? "text-green-600" : margin >= 15 ? "text-yellow-600" : "text-destructive"} />
           <KpiCard label="Disponible" value={fmt(available)} icon={<Wallet className="w-4 h-4" />} color="text-green-600" />
         </div>
@@ -290,12 +291,17 @@ const OwnerDashboard = () => {
   );
 };
 
-const KpiCard = ({ label, value, icon, color }: { label: string; value: string; icon: React.ReactNode; color: string }) => (
+const KpiCard = ({ label, value, icon, color, tooltip }: { label: string; value: string; icon: React.ReactNode; color: string; tooltip?: string }) => (
   <Card>
     <CardContent className="p-4">
       <div className="flex items-center gap-2 text-muted-foreground mb-1">
         {icon}
         <span className="text-xs font-body">{label}</span>
+        {tooltip && (
+          <TooltipProvider><Tooltip><TooltipTrigger>
+            <AlertCircle className="w-3 h-3 text-muted-foreground" />
+          </TooltipTrigger><TooltipContent><p className="text-xs max-w-48">{tooltip}</p></TooltipContent></Tooltip></TooltipProvider>
+        )}
       </div>
       <p className={`text-xl font-heading font-bold ${color}`}>{value}</p>
     </CardContent>

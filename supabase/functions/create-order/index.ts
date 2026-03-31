@@ -170,6 +170,7 @@ Deno.serve(async (req) => {
                 WHERE ingredient_id = ${recipe.ingredient_id}
                   AND quantity_remaining > 0
                 ORDER BY purchase_date ASC, created_at ASC, id ASC
+                FOR UPDATE
               `;
 
               for (const batch of batches) {

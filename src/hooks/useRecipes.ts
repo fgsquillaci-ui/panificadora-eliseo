@@ -86,7 +86,15 @@ export function useRecipes(productId?: string) {
     return true;
   };
 
-  const totalCost = recipes.reduce((s, r) => s + r.line_cost, 0);
+  const hasZeroStock = recipes.some(r => r.ingredient_stock === 0);
+  const totalCost = hasZeroStock ? null : recipes.reduce((s, r) => s + r.line_cost, 0);
 
-  return { recipes, loading, addLine, updateLine, removeLine, totalCost, refetch: fetch };
+  // Validation logging
+  recipes.forEach(r => {
+    if (r.ingredient_stock < 0) {
+      console.warn("Ingredient with negative stock detected", r.ingredient_name, r.ingredient_stock);
+    }
+  });
+
+  return { recipes, loading, addLine, updateLine, removeLine, totalCost, hasZeroStock, refetch: fetch };
 }
