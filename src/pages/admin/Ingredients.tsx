@@ -82,7 +82,7 @@ const Ingredients = () => {
             </CardContent></Card>
             <Card><CardContent className="p-4">
               <p className="text-xs text-muted-foreground mb-1">Costo promedio (compras)</p>
-              <p className="text-xl font-heading font-bold text-foreground">{weightedAvgCost > 0 ? `${fmt(weightedAvgCost)} / ${selectedIngredient.unit}` : "Sin compras"}</p>
+              <p className="text-xl font-heading font-bold text-foreground">{weightedAvgCost > 0 ? `${fmt(weightedAvgCost / 100)} / ${selectedIngredient.unit}` : "Sin compras"}</p>
             </CardContent></Card>
             {weightedAvgCost > 0 && (
               <Card><CardContent className="p-4">
