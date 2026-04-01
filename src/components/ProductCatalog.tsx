@@ -3,6 +3,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { categories, type Product } from "@/data/products";
 import { useProducts } from "@/hooks/useProducts";
+import ciabattaImg from "@/assets/products/ciabatta.jpg";
+
+const productImages: Record<string, string> = {
+  ciabattas: ciabattaImg,
+};
 
 interface Props {
   onAddToCart: (product: Product) => void;
