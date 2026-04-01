@@ -177,6 +177,9 @@ const OwnerDashboard = () => {
               <AlertCard key={p.product_name} type="warning" text={`Margen bajo: ${p.product_name} (${p.margin!.toFixed(1)}%)`} />
             ))}
             {highExpenses && <AlertCard type="warning" text="Gastos superan el 50% de ingresos" />}
+            {realCost === 0 && revenue > 0 && <AlertCard type="destructive" text="⚠️ Ganancia no confiable — no hay costos históricos registrados" />}
+            {hasPartialMissingCost && <AlertCard type="warning" text={`⚠️ Margen parcialmente confiable — falta costo histórico en ${itemsMissingCost} venta(s)`} />}
+            {!hasPartialMissingCost && itemsMissingCost > 0 && <AlertCard type="warning" text={`⚠️ Falta costo histórico en ${itemsMissingCost} venta(s)`} />}
           </div>
         )}
 
