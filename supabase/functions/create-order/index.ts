@@ -143,6 +143,7 @@ Deno.serve(async (req) => {
 
         // Track affected ingredients for post-transaction resync
         const affectedIngredients = new Set<string>();
+        const warnings: string[] = [];
 
         // Process each item with FIFO consumption
         for (const item of body.items) {
@@ -155,6 +156,7 @@ Deno.serve(async (req) => {
           `;
 
           let itemCostPesos = 0;
+          let theoreticalCost = 0;
           const hasRecipe = recipeRows.length > 0;
 
           if (hasRecipe) {
@@ -162,6 +164,13 @@ Deno.serve(async (req) => {
             for (const recipe of recipeRows) {
               const neededQty = Number(recipe.recipe_qty) * item.quantity;
               let remaining = neededQty;
+
+              // Calculate theoretical cost from ingredient's current unit cost
+              const [ingCost] = await tx`
+                SELECT costo_unitario FROM public.ingredients WHERE id = ${recipe.ingredient_id}
+              `;
+              const ingUnitCostPesos = Number(ingCost.costo_unitario) / 100;
+              theoreticalCost += ingUnitCostPesos * neededQty;
 
               // Get batches in FIFO order
               const batches = await tx`
@@ -187,17 +196,21 @@ Deno.serve(async (req) => {
               }
 
               if (remaining > 0) {
-                return { stockError: `Stock insuficiente: ${recipe.ingredient_name} (faltan ${remaining.toFixed(2)} ${recipe.ingredient_unit})` };
+                warnings.push(`${recipe.ingredient_name}: faltan ${remaining.toFixed(2)} ${recipe.ingredient_unit}`);
+                console.warn("Stock shortage (non-blocking):", {
+                  ingredient: recipe.ingredient_name, needed: neededQty,
+                  consumed: neededQty - remaining, shortage: remaining
+                });
               }
 
               affectedIngredients.add(recipe.ingredient_id);
             }
           }
 
-          // cost_snapshot in pesos (no scaling)
-          const costSnapshot = hasRecipe ? itemCostPesos : (item.cost_snapshot ?? null);
-          const marginSnapshot = hasRecipe && itemCostPesos > 0 && item.total > 0
-            ? ((item.total - itemCostPesos) / item.total) * 100
+          // cost_snapshot uses theoretical cost (full production cost) to avoid inflated margins
+          const costSnapshot = hasRecipe ? theoreticalCost : (item.cost_snapshot ?? null);
+          const marginSnapshot = hasRecipe && theoreticalCost > 0 && item.total > 0
+            ? ((item.total - theoreticalCost) / item.total) * 100
             : item.margin_snapshot;
 
           await tx`
