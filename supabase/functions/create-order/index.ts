@@ -187,7 +187,7 @@ Deno.serve(async (req) => {
               }
 
               if (remaining > 0) {
-                throw new Error(`Stock insuficiente: ${recipe.ingredient_name} (faltan ${remaining.toFixed(2)} ${recipe.ingredient_unit})`);
+                return { stockError: `Stock insuficiente: ${recipe.ingredient_name} (faltan ${remaining.toFixed(2)} ${recipe.ingredient_unit})` };
               }
 
               affectedIngredients.add(recipe.ingredient_id);
