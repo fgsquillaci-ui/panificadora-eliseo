@@ -6,13 +6,13 @@ const Hero = ({ onCtaClick }: { onCtaClick: () => void }) => {
   return (
     <section className="relative w-full h-[70vh] flex items-center justify-center text-center">
       {/* Background */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 bg-black">
         <video
           autoPlay
           muted
           loop
           playsInline
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
           src="/video/video_portada.mp4"
         />
         <div className="absolute inset-0 bg-black/20" />
