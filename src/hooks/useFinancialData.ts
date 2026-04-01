@@ -22,6 +22,7 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
   const [cashMovements, setCashMovements] = useState<any[]>([]);
   const [expensesList, setExpensesList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [itemsMissingCost, setItemsMissingCost] = useState(0);
 
   const fetchData = async () => {
     setLoading(true);
@@ -54,6 +55,7 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
     let totalRevenue = 0;
     let totalCost = 0;
     let totalRealCost = 0;
+    let totalMissingCost = 0;
     items.forEach((item) => {
       const qty = item.quantity ?? 0;
       const itemTotal = item.total && item.total > 0 ? item.total : (item.unit_price ?? 0) * qty;
@@ -65,11 +67,11 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
       }
 
       // Real cost from FIFO cost_snapshot (total line cost)
-      const costSnap = item.cost_snapshot ?? 0;
-      if (costSnap > 0) {
-        totalRealCost += costSnap;
+      const costSnap = item.cost_snapshot;
+      if (costSnap === null || costSnap === undefined) {
+        totalMissingCost++;
       } else {
-        console.warn("Delivered order item missing cost_snapshot", item);
+        totalRealCost += costSnap;
       }
     });
 
