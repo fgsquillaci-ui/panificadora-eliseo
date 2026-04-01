@@ -133,7 +133,7 @@ const OwnerDashboard = () => {
           <KpiCard label="Costos est." value={fmt(estimatedCost + expenses)} icon={<TrendingDown className="w-4 h-4" />} color="text-orange-500" tooltip="Proyección basada en costo actual de recetas" />
           <KpiCard label="Ganancia est." value={fmt(estimatedProfit)} icon={<TrendingUp className="w-4 h-4" />} color={estimatedProfit >= 0 ? "text-green-600" : "text-destructive"} tooltip="Proyección basada en costo actual de recetas" />
           <KpiCard label="Ganancia real" value={fmt(realProfit)} icon={<TrendingUp className="w-4 h-4" />} color={realProfit >= 0 ? "text-green-600" : "text-destructive"} tooltip="Basada en costo histórico real (FIFO) de cada pedido" />
-          <KpiCard label="Margen real" value={realCostMissing ? "N/D" : realMargin !== null ? `${realMargin.toFixed(1)}%` : "0%"} icon={<Percent className="w-4 h-4" />} color={realCostMissing ? "text-muted-foreground" : (realMargin ?? 0) >= 30 ? "text-green-600" : (realMargin ?? 0) >= 15 ? "text-yellow-600" : "text-destructive"} tooltip={realCostMissing ? "Margen no disponible — falta costo histórico" : "Basado en costo real FIFO de cada pedido"} />
+          <KpiCard label="Margen real" value={realMargin === null ? "—" : `${realMargin.toFixed(1)}%`} icon={<Percent className="w-4 h-4" />} color={realMargin === null ? "text-muted-foreground" : realMargin >= 30 ? "text-green-600" : realMargin >= 15 ? "text-yellow-600" : "text-destructive"} tooltip={realMargin === null ? "No se puede calcular — falta costo histórico" : "Basado en costo real FIFO de cada pedido"} />
           <KpiCard label="Disponible" value={fmt(available)} icon={<Wallet className="w-4 h-4" />} color="text-green-600" />
         </div>
 

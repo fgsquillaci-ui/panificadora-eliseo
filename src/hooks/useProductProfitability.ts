@@ -94,9 +94,10 @@ export function useProductProfitability(period: Period, tierFilter: TierFilter =
         const itemRevenue = item.total && item.total > 0 ? item.total : (item.unit_price ?? 0) * qty;
         agg[pid].revenue += itemRevenue;
 
-        const unitCost = priceMap[pid]?.unit_cost ?? 0;
-        if (unitCost > 0) {
-          agg[pid].cost += unitCost * qty;
+        // Use historical cost_snapshot instead of dynamic unit_cost
+        const costSnap = item.cost_snapshot;
+        if (costSnap !== null && costSnap !== undefined) {
+          agg[pid].cost += costSnap;
           agg[pid].hasCost = true;
         }
 
