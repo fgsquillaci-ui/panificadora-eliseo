@@ -170,13 +170,70 @@ const OwnerDashboard = () => {
               </SelectContent>
             </Select>
             {/* Period selector */}
-            <div className="flex gap-1 bg-secondary rounded-lg p-1">
-              {(["hoy", "semana", "mes"] as Period[]).map(p => (
-                <button key={p} onClick={() => setPeriod(p)}
+            <div className="flex items-center gap-1 bg-secondary rounded-lg p-1">
+              {(["hoy", "semana", "mes", "todo"] as Period[]).map(p => (
+                <button key={p} onClick={() => handleQuickPeriod(p)}
                   className={`px-3 py-1.5 rounded-md text-xs font-body font-medium transition-colors ${period === p ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}>
                   {p.charAt(0).toUpperCase() + p.slice(1)}
                 </button>
               ))}
+              {/* Custom range button */}
+              <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    className={`px-3 py-1.5 rounded-md text-xs font-body font-medium transition-colors flex items-center gap-1 ${period === "custom" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                    <CalendarIcon className="w-3 h-3" />
+                    {periodLabel || "Período"}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-4 space-y-4" align="end">
+                  {/* Quick month selector */}
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Mes rápido</p>
+                    <Select onValueChange={handleMonthSelect}>
+                      <SelectTrigger className="w-full h-8 text-xs">
+                        <SelectValue placeholder="Seleccionar mes..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {monthOptions.map(m => (
+                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Manual range */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Rango personalizado</p>
+                    <div className="flex gap-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className={cn("w-[120px] justify-start text-left text-xs", !dateFrom && "text-muted-foreground")}>
+                            <CalendarIcon className="w-3 h-3 mr-1" />
+                            {dateFrom ? format(dateFrom, "dd/MM/yy") : "Desde"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" />
+                        </PopoverContent>
+                      </Popover>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className={cn("w-[120px] justify-start text-left text-xs", !dateTo && "text-muted-foreground")}>
+                            <CalendarIcon className="w-3 h-3 mr-1" />
+                            {dateTo ? format(dateTo, "dd/MM/yy") : "Hasta"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <Button size="sm" className="w-full" disabled={!dateFrom || !dateTo} onClick={applyCustomRange}>
+                      Aplicar
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
