@@ -31,7 +31,7 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
 
     let itemsQuery = supabase
       .from("order_items")
-      .select("total, unit_price, quantity, cost_snapshot, pricing_tier_applied, orders!inner(status, created_at)")
+      .select("product_id, total, unit_price, quantity, cost_snapshot, pricing_tier_applied, orders!inner(status, created_at)")
       .eq("orders.status", "entregado" as any)
       .gte("orders.created_at", start);
 
