@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfDay, startOfWeek, startOfMonth, format } from "date-fns";
-import type { Period } from "./useFinancialData";
+import type { Period, CustomRange } from "./useFinancialData";
 
 export type TierFilter = "minorista" | "intermedio" | "mayorista" | null;
 
@@ -16,12 +16,15 @@ export interface ProductProfit {
   priceDeviation: boolean;
 }
 
-function getPeriodStart(period: Period): string {
+function getPeriodStart(period: Period, customRange?: CustomRange): string {
+  if (period === "custom" && customRange) return customRange.from;
+  if (period === "todo") return "2020-01-01T00:00:00";
   const now = new Date();
   switch (period) {
     case "hoy": return format(startOfDay(now), "yyyy-MM-dd'T'HH:mm:ss");
     case "semana": return format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd'T'HH:mm:ss");
     case "mes": return format(startOfMonth(now), "yyyy-MM-dd'T'HH:mm:ss");
+    default: return format(startOfDay(now), "yyyy-MM-dd'T'HH:mm:ss");
   }
 }
 
@@ -39,7 +42,7 @@ function getExpectedPrice(
   }
 }
 
-export function useProductProfitability(period: Period, tierFilter: TierFilter = null) {
+export function useProductProfitability(period: Period, tierFilter: TierFilter = null, customRange?: CustomRange) {
   const [data, setData] = useState<ProductProfit[]>([]);
   const [loading, setLoading] = useState(true);
   const [estimatedCost, setEstimatedCost] = useState(0);
@@ -47,7 +50,8 @@ export function useProductProfitability(period: Period, tierFilter: TierFilter =
   useEffect(() => {
     const run = async () => {
       setLoading(true);
-      const start = getPeriodStart(period);
+      const start = getPeriodStart(period, customRange);
+      const end = period === "custom" && customRange ? customRange.to : undefined;
 
       let query = supabase
         .from("order_items")
@@ -55,9 +59,8 @@ export function useProductProfitability(period: Period, tierFilter: TierFilter =
         .eq("orders.status", "entregado" as any)
         .gte("orders.created_at", start);
 
-      if (tierFilter) {
-        query = query.eq("pricing_tier_applied", tierFilter);
-      }
+      if (end) query = query.lte("orders.created_at", end);
+      if (tierFilter) query = query.eq("pricing_tier_applied", tierFilter);
 
       const [{ data: items }, { data: productRows }] = await Promise.all([
         query,
@@ -151,7 +154,7 @@ export function useProductProfitability(period: Period, tierFilter: TierFilter =
       setLoading(false);
     };
     run();
-  }, [period, tierFilter]);
+  }, [period, tierFilter, customRange?.from, customRange?.to]);
 
   return { products: data, estimatedCost, loading };
 }

@@ -3,18 +3,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { startOfDay, startOfWeek, startOfMonth, format } from "date-fns";
 import type { TierFilter } from "./useProductProfitability";
 
-export type Period = "hoy" | "semana" | "mes";
+export type Period = "hoy" | "semana" | "mes" | "todo" | "custom";
 
-function getPeriodStart(period: Period): string {
+export interface CustomRange {
+  from: string;
+  to: string;
+}
+
+function getPeriodStart(period: Period, customRange?: CustomRange): string {
+  if (period === "custom" && customRange) return customRange.from;
+  if (period === "todo") return "2020-01-01T00:00:00";
   const now = new Date();
   switch (period) {
     case "hoy": return format(startOfDay(now), "yyyy-MM-dd'T'HH:mm:ss");
     case "semana": return format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd'T'HH:mm:ss");
     case "mes": return format(startOfMonth(now), "yyyy-MM-dd'T'HH:mm:ss");
+    default: return format(startOfDay(now), "yyyy-MM-dd'T'HH:mm:ss");
   }
 }
 
-export function useFinancialData(period: Period, tierFilter: TierFilter = null) {
+export function useFinancialData(period: Period, tierFilter: TierFilter = null, customRange?: CustomRange) {
   const [revenue, setRevenue] = useState(0);
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [realCost, setRealCost] = useState(0);
@@ -26,8 +34,10 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
 
   const fetchData = async () => {
     setLoading(true);
-    const start = getPeriodStart(period);
+    const start = getPeriodStart(period, customRange);
     const startDate = format(new Date(start), "yyyy-MM-dd");
+    const end = period === "custom" && customRange ? customRange.to : undefined;
+    const endDate = end ? format(new Date(end), "yyyy-MM-dd") : undefined;
 
     let itemsQuery = supabase
       .from("order_items")
@@ -35,14 +45,19 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
       .eq("orders.status", "entregado" as any)
       .gte("orders.created_at", start);
 
-    if (tierFilter) {
-      itemsQuery = itemsQuery.eq("pricing_tier_applied", tierFilter);
-    }
+    if (end) itemsQuery = itemsQuery.lte("orders.created_at", end);
+    if (tierFilter) itemsQuery = itemsQuery.eq("pricing_tier_applied", tierFilter);
+
+    let expensesQuery = supabase.from("expenses").select("*").gte("date", startDate).order("date", { ascending: false });
+    if (endDate) expensesQuery = expensesQuery.lte("date", endDate);
+
+    let cashQuery = supabase.from("cash_movements").select("*").gte("date", startDate).order("date", { ascending: false });
+    if (endDate) cashQuery = cashQuery.lte("date", endDate);
 
     const [itemsRes, expensesRes, cashRes, productsRes] = await Promise.all([
       itemsQuery,
-      supabase.from("expenses").select("*").gte("date", startDate).order("date", { ascending: false }),
-      supabase.from("cash_movements").select("*").gte("date", startDate).order("date", { ascending: false }),
+      expensesQuery,
+      cashQuery,
       supabase.from("products").select("id, unit_cost"),
     ]);
 
@@ -89,14 +104,14 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
 
   useEffect(() => {
     fetchData();
-  }, [period, tierFilter]);
+  }, [period, tierFilter, customRange?.from, customRange?.to]);
 
   useEffect(() => {
     const ch1 = supabase.channel("fin-expenses").on("postgres_changes", { event: "*", schema: "public", table: "expenses" }, fetchData).subscribe();
     const ch2 = supabase.channel("fin-cash").on("postgres_changes", { event: "*", schema: "public", table: "cash_movements" }, fetchData).subscribe();
     const ch3 = supabase.channel("fin-orders").on("postgres_changes", { event: "*", schema: "public", table: "orders" }, fetchData).subscribe();
     return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); supabase.removeChannel(ch3); };
-  }, [period, tierFilter]);
+  }, [period, tierFilter, customRange?.from, customRange?.to]);
 
   const totalCashIn = cashMovements.filter(m => m.type === "ingreso").reduce((s, m) => s + m.amount, 0);
   const totalCashOut = cashMovements.filter(m => m.type !== "ingreso").reduce((s, m) => s + m.amount, 0);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,25 +6,79 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";  // still used in CostAnalysis
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useFinancialData, type Period } from "@/hooks/useFinancialData";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { useFinancialData, type Period, type CustomRange } from "@/hooks/useFinancialData";
 import { useProductProfitability, type TierFilter } from "@/hooks/useProductProfitability";
 import { useIngredients } from "@/hooks/useIngredients";
 import { usePurchases } from "@/hooks/usePurchases";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Percent, Wallet, BarChart3, RefreshCw, Tag, AlertCircle } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Percent, Wallet, BarChart3, RefreshCw, Tag, AlertCircle, CalendarIcon } from "lucide-react";
 import { formatCurrency } from "@/utils/currency";
+import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { es } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 const fmt = formatCurrency;
 
 const OwnerDashboard = () => {
   const [period, setPeriod] = useState<Period>("hoy");
   const [tierFilter, setTierFilter] = useState<TierFilter>(null);
-  const { revenue, expenses, realCost, realProfit, realMargin, realCostMissing, expensesList, cashMovements, totalWithdrawals, loading, itemsMissingCost, hasPartialMissingCost } = useFinancialData(period, tierFilter);
-  const { products, estimatedCost, loading: profitLoading } = useProductProfitability(period, tierFilter);
+  const [customRange, setCustomRange] = useState<CustomRange | undefined>(undefined);
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [popoverOpen, setPopoverOpen] = useState(false);
+
+  const { revenue, expenses, realCost, realProfit, realMargin, realCostMissing, expensesList, cashMovements, totalWithdrawals, loading, itemsMissingCost, hasPartialMissingCost } = useFinancialData(period, tierFilter, customRange);
+  const { products, estimatedCost, loading: profitLoading } = useProductProfitability(period, tierFilter, customRange);
   const { ingredients, lowStock, update: updateIngredient } = useIngredients();
   const { purchases: allPurchases } = usePurchases();
+
+  // Generate last 6 months options
+  const monthOptions = useMemo(() => {
+    const opts = [];
+    for (let i = 0; i < 6; i++) {
+      const d = subMonths(new Date(), i);
+      const label = format(d, "MMMM yyyy", { locale: es });
+      const from = format(startOfMonth(d), "yyyy-MM-dd'T'HH:mm:ss");
+      const to = format(endOfMonth(d), "yyyy-MM-dd'T'23:59:59");
+      opts.push({ label: label.charAt(0).toUpperCase() + label.slice(1), from, to, value: `month-${i}` });
+    }
+    return opts;
+  }, []);
+
+  const handleQuickPeriod = (p: Period) => {
+    setPeriod(p);
+    setCustomRange(undefined);
+    setDateFrom(undefined);
+    setDateTo(undefined);
+  };
+
+  const handleMonthSelect = (value: string) => {
+    const opt = monthOptions.find(m => m.value === value);
+    if (opt) {
+      setPeriod("custom");
+      setCustomRange({ from: opt.from, to: opt.to });
+      setPopoverOpen(false);
+    }
+  };
+
+  const applyCustomRange = () => {
+    if (dateFrom && dateTo) {
+      setPeriod("custom");
+      setCustomRange({
+        from: format(dateFrom, "yyyy-MM-dd'T'00:00:00"),
+        to: format(dateTo, "yyyy-MM-dd'T'23:59:59"),
+      });
+      setPopoverOpen(false);
+    }
+  };
+
+  const periodLabel = period === "custom" && customRange
+    ? `${format(new Date(customRange.from), "dd/MM/yy")} – ${format(new Date(customRange.to), "dd/MM/yy")}`
+    : null;
 
   // Pending payments
   const [pendingPayments, setPendingPayments] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
@@ -116,13 +170,70 @@ const OwnerDashboard = () => {
               </SelectContent>
             </Select>
             {/* Period selector */}
-            <div className="flex gap-1 bg-secondary rounded-lg p-1">
-              {(["hoy", "semana", "mes"] as Period[]).map(p => (
-                <button key={p} onClick={() => setPeriod(p)}
+            <div className="flex items-center gap-1 bg-secondary rounded-lg p-1">
+              {(["hoy", "semana", "mes", "todo"] as Period[]).map(p => (
+                <button key={p} onClick={() => handleQuickPeriod(p)}
                   className={`px-3 py-1.5 rounded-md text-xs font-body font-medium transition-colors ${period === p ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}>
                   {p.charAt(0).toUpperCase() + p.slice(1)}
                 </button>
               ))}
+              {/* Custom range button */}
+              <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    className={`px-3 py-1.5 rounded-md text-xs font-body font-medium transition-colors flex items-center gap-1 ${period === "custom" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                    <CalendarIcon className="w-3 h-3" />
+                    {periodLabel || "Período"}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-4 space-y-4" align="end">
+                  {/* Quick month selector */}
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Mes rápido</p>
+                    <Select onValueChange={handleMonthSelect}>
+                      <SelectTrigger className="w-full h-8 text-xs">
+                        <SelectValue placeholder="Seleccionar mes..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {monthOptions.map(m => (
+                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Manual range */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Rango personalizado</p>
+                    <div className="flex gap-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className={cn("w-[120px] justify-start text-left text-xs", !dateFrom && "text-muted-foreground")}>
+                            <CalendarIcon className="w-3 h-3 mr-1" />
+                            {dateFrom ? format(dateFrom, "dd/MM/yy") : "Desde"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" />
+                        </PopoverContent>
+                      </Popover>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className={cn("w-[120px] justify-start text-left text-xs", !dateTo && "text-muted-foreground")}>
+                            <CalendarIcon className="w-3 h-3 mr-1" />
+                            {dateTo ? format(dateTo, "dd/MM/yy") : "Hasta"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <Button size="sm" className="w-full" disabled={!dateFrom || !dateTo} onClick={applyCustomRange}>
+                      Aplicar
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
