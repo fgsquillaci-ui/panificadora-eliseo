@@ -42,7 +42,7 @@ function getExpectedPrice(
   }
 }
 
-export function useProductProfitability(period: Period, tierFilter: TierFilter = null) {
+export function useProductProfitability(period: Period, tierFilter: TierFilter = null, customRange?: CustomRange) {
   const [data, setData] = useState<ProductProfit[]>([]);
   const [loading, setLoading] = useState(true);
   const [estimatedCost, setEstimatedCost] = useState(0);
