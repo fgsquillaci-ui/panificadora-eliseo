@@ -184,7 +184,11 @@ Deno.serve(async (req) => {
         }
 
         // Insert order history
-...
+        await tx`
+          INSERT INTO public.order_history (order_id, action, new_value, user_id)
+          VALUES (${orderId}, 'created', ${"total:" + body.total}, ${body.user_id})
+        `;
+
         return { id: orderId };
       });
 
