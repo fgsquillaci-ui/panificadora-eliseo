@@ -8,7 +8,7 @@ export interface Product {
   minQtyMidTier?: number;
   minQtyWholesale?: number;
   unit?: string;
-  category: "panes" | "especiales" | "tortilleria";
+  category: "panes" | "especiales" | "tortilleria" | "postres";
   emoji: string;
 }
 
