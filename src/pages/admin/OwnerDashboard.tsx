@@ -211,7 +211,7 @@ const OwnerDashboard = () => {
                         </td>
                         <td className="py-2 text-right">{p.units_sold}</td>
                         <td className="py-2 text-right">{fmt(p.revenue)}</td>
-                        <td className="py-2 text-right">{p.hasRecipe ? fmt(p.cost) : <span className="text-muted-foreground text-xs">Sin costo</span>}</td>
+                        <td className="py-2 text-right">{p.hasRecipe ? (p.cost > 0 ? fmt(p.cost) : <span className="text-muted-foreground text-xs">Costo no disponible</span>) : <span className="text-muted-foreground text-xs">Sin costo</span>}</td>
                         <td className="py-2 text-right">
                           {p.margin !== null ? (
                             <Badge variant={p.margin >= 30 ? "default" : p.margin >= 15 ? "secondary" : "destructive"}>
