@@ -21,7 +21,7 @@ const fmt = formatCurrency;
 const OwnerDashboard = () => {
   const [period, setPeriod] = useState<Period>("hoy");
   const [tierFilter, setTierFilter] = useState<TierFilter>(null);
-  const { revenue, expenses, realCost, realProfit, realMargin, realCostMissing, expensesList, cashMovements, totalWithdrawals, loading } = useFinancialData(period, tierFilter);
+  const { revenue, expenses, realCost, realProfit, realMargin, realCostMissing, expensesList, cashMovements, totalWithdrawals, loading, itemsMissingCost, hasPartialMissingCost } = useFinancialData(period, tierFilter);
   const { products, estimatedCost, loading: profitLoading } = useProductProfitability(period, tierFilter);
   const { ingredients, lowStock, update: updateIngredient } = useIngredients();
   const { purchases: allPurchases } = usePurchases();
@@ -133,7 +133,7 @@ const OwnerDashboard = () => {
           <KpiCard label="Costos est." value={fmt(estimatedCost + expenses)} icon={<TrendingDown className="w-4 h-4" />} color="text-orange-500" tooltip="Proyección basada en costo actual de recetas" />
           <KpiCard label="Ganancia est." value={fmt(estimatedProfit)} icon={<TrendingUp className="w-4 h-4" />} color={estimatedProfit >= 0 ? "text-green-600" : "text-destructive"} tooltip="Proyección basada en costo actual de recetas" />
           <KpiCard label="Ganancia real" value={fmt(realProfit)} icon={<TrendingUp className="w-4 h-4" />} color={realProfit >= 0 ? "text-green-600" : "text-destructive"} tooltip="Basada en costo histórico real (FIFO) de cada pedido" />
-          <KpiCard label="Margen real" value={realCostMissing ? "N/D" : realMargin !== null ? `${realMargin.toFixed(1)}%` : "0%"} icon={<Percent className="w-4 h-4" />} color={realCostMissing ? "text-muted-foreground" : (realMargin ?? 0) >= 30 ? "text-green-600" : (realMargin ?? 0) >= 15 ? "text-yellow-600" : "text-destructive"} tooltip={realCostMissing ? "Margen no disponible — falta costo histórico" : "Basado en costo real FIFO de cada pedido"} />
+          <KpiCard label="Margen real" value={realMargin === null ? "—" : `${realMargin.toFixed(1)}%`} icon={<Percent className="w-4 h-4" />} color={realMargin === null ? "text-muted-foreground" : realMargin >= 30 ? "text-green-600" : realMargin >= 15 ? "text-yellow-600" : "text-destructive"} tooltip={realMargin === null ? "No se puede calcular — falta costo histórico" : "Basado en costo real FIFO de cada pedido"} />
           <KpiCard label="Disponible" value={fmt(available)} icon={<Wallet className="w-4 h-4" />} color="text-green-600" />
         </div>
 
@@ -177,6 +177,9 @@ const OwnerDashboard = () => {
               <AlertCard key={p.product_name} type="warning" text={`Margen bajo: ${p.product_name} (${p.margin!.toFixed(1)}%)`} />
             ))}
             {highExpenses && <AlertCard type="warning" text="Gastos superan el 50% de ingresos" />}
+            {realCost === 0 && revenue > 0 && <AlertCard type="destructive" text="⚠️ Ganancia no confiable — no hay costos históricos registrados" />}
+            {hasPartialMissingCost && <AlertCard type="warning" text={`⚠️ Margen parcialmente confiable — falta costo histórico en ${itemsMissingCost} venta(s)`} />}
+            {!hasPartialMissingCost && itemsMissingCost > 0 && <AlertCard type="warning" text={`⚠️ Falta costo histórico en ${itemsMissingCost} venta(s)`} />}
           </div>
         )}
 

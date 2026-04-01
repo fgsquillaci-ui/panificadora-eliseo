@@ -22,6 +22,7 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
   const [cashMovements, setCashMovements] = useState<any[]>([]);
   const [expensesList, setExpensesList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [itemsMissingCost, setItemsMissingCost] = useState(0);
 
   const fetchData = async () => {
     setLoading(true);
@@ -54,6 +55,7 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
     let totalRevenue = 0;
     let totalCost = 0;
     let totalRealCost = 0;
+    let totalMissingCost = 0;
     items.forEach((item) => {
       const qty = item.quantity ?? 0;
       const itemTotal = item.total && item.total > 0 ? item.total : (item.unit_price ?? 0) * qty;
@@ -65,11 +67,11 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
       }
 
       // Real cost from FIFO cost_snapshot (total line cost)
-      const costSnap = item.cost_snapshot ?? 0;
-      if (costSnap > 0) {
-        totalRealCost += costSnap;
+      const costSnap = item.cost_snapshot;
+      if (costSnap === null || costSnap === undefined) {
+        totalMissingCost++;
       } else {
-        console.warn("Delivered order item missing cost_snapshot", item);
+        totalRealCost += costSnap;
       }
     });
 
@@ -81,6 +83,7 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
     setExpenses(totalExpenses);
     setExpensesList(expensesRes.data || []);
     setCashMovements(cashRes.data || []);
+    setItemsMissingCost(totalMissingCost);
     setLoading(false);
   };
 
@@ -100,8 +103,11 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
   const totalWithdrawals = cashMovements.filter(m => m.type === "retiro").reduce((s, m) => s + m.amount, 0);
 
   const realProfit = revenue - realCost - expenses;
-  const realMargin = revenue > 0 && realCost > 0 ? ((revenue - realCost) / revenue) * 100 : null;
+  const realMargin = revenue > 0 && realCost > 0
+    ? ((revenue - realCost) / revenue) * 100
+    : (revenue > 0 ? null : 0);
   const realCostMissing = realCost === 0 && revenue > 0;
+  const hasPartialMissingCost = realCost > 0 && itemsMissingCost > 0;
 
-  return { revenue, estimatedCost, realCost, realProfit, realMargin, realCostMissing, expenses, expensesList, cashMovements, totalCashIn, totalCashOut, totalWithdrawals, loading, refetch: fetchData };
+  return { revenue, estimatedCost, realCost, realProfit, realMargin, realCostMissing, expenses, expensesList, cashMovements, totalCashIn, totalCashOut, totalWithdrawals, loading, refetch: fetchData, itemsMissingCost, hasPartialMissingCost };
 }

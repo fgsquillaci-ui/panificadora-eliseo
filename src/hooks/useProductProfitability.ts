@@ -61,7 +61,7 @@ export function useProductProfitability(period: Period, tierFilter: TierFilter =
 
       const [{ data: items }, { data: productRows }] = await Promise.all([
         query,
-        supabase.from("products").select("id, retail_price, wholesale_price, intermediate_price, unit_cost"),
+        supabase.from("products").select("id, retail_price, wholesale_price, intermediate_price"),
       ]);
 
       if (!items || items.length === 0) {
@@ -71,10 +71,10 @@ export function useProductProfitability(period: Period, tierFilter: TierFilter =
         return;
       }
 
-      // Build product price map
-      const priceMap: Record<string, { retail_price: number | null; wholesale_price: number | null; intermediate_price: number | null; unit_cost: number | null }> = {};
+      // Build product price map (for price deviation only, NOT for cost)
+      const priceMap: Record<string, { retail_price: number | null; wholesale_price: number | null; intermediate_price: number | null }> = {};
       (productRows || []).forEach((p: any) => {
-        priceMap[p.id] = { retail_price: p.retail_price, wholesale_price: p.wholesale_price, intermediate_price: p.intermediate_price, unit_cost: p.unit_cost };
+        priceMap[p.id] = { retail_price: p.retail_price, wholesale_price: p.wholesale_price, intermediate_price: p.intermediate_price };
       });
 
       // Aggregate by product_id, also track dominant tier
@@ -94,9 +94,10 @@ export function useProductProfitability(period: Period, tierFilter: TierFilter =
         const itemRevenue = item.total && item.total > 0 ? item.total : (item.unit_price ?? 0) * qty;
         agg[pid].revenue += itemRevenue;
 
-        const unitCost = priceMap[pid]?.unit_cost ?? 0;
-        if (unitCost > 0) {
-          agg[pid].cost += unitCost * qty;
+        // Use historical cost_snapshot instead of dynamic unit_cost
+        const costSnap = item.cost_snapshot;
+        if (costSnap !== null && costSnap !== undefined) {
+          agg[pid].cost += costSnap;
           agg[pid].hasCost = true;
         }
 
