@@ -21,7 +21,7 @@ const fmt = formatCurrency;
 const OwnerDashboard = () => {
   const [period, setPeriod] = useState<Period>("hoy");
   const [tierFilter, setTierFilter] = useState<TierFilter>(null);
-  const { revenue, expenses, realCost, realProfit, expensesList, cashMovements, totalWithdrawals, loading } = useFinancialData(period, tierFilter);
+  const { revenue, expenses, realCost, realProfit, realMargin, realCostMissing, expensesList, cashMovements, totalWithdrawals, loading } = useFinancialData(period, tierFilter);
   const { products, estimatedCost, loading: profitLoading } = useProductProfitability(period, tierFilter);
   const { ingredients, lowStock, update: updateIngredient } = useIngredients();
   const { purchases: allPurchases } = usePurchases();
