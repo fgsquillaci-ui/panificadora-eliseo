@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfDay, startOfWeek, startOfMonth, format } from "date-fns";
-import type { Period } from "./useFinancialData";
+import type { Period, CustomRange } from "./useFinancialData";
 
 export type TierFilter = "minorista" | "intermedio" | "mayorista" | null;
 
