@@ -103,9 +103,9 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
   const totalWithdrawals = cashMovements.filter(m => m.type === "retiro").reduce((s, m) => s + m.amount, 0);
 
   const realProfit = revenue - realCost - expenses;
-  const realMargin = revenue > 0 && realCost > 0
+  const realMargin = revenue > 0
     ? ((revenue - realCost) / revenue) * 100
-    : (revenue > 0 ? null : 0);
+    : null;
   const realCostMissing = realCost === 0 && revenue > 0;
   const hasPartialMissingCost = realCost > 0 && itemsMissingCost > 0;
 
