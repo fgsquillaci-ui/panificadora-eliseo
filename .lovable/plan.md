@@ -1,35 +1,30 @@
 
 
-## Agregar categoría "Postres" con productos
+## Fix: Pricing Sync + Historical Financial Integrity
 
-### Cambios
+### 3 cambios puntuales
 
-**1. `src/data/products.ts`**
-
-- Línea 11: ampliar tipo `category` a `"panes" | "especiales" | "tortilleria" | "postres"`
-- Línea 20: agregar `{ id: "postres" as const, name: "Postres", emoji: "🍰" }` al array `categories`
-
-**2. Insertar productos en base de datos**
-
-```sql
-INSERT INTO products (name, category, emoji, retail_price, wholesale_price, unit_cost, description)
-VALUES
-  ('Budín', 'postres', '🍰', 6000, 4500, 0, 'Budín artesanal horneado con ingredientes naturales.'),
-  ('Budín de pan', 'postres', '🍮', 1700, NULL, 0, 'Clásico budín de pan casero.'),
-  ('Chocotorta', 'postres', '🍫', 2300, NULL, 0, 'Chocotorta cremosa con chocolinas y dulce de leche.'),
-  ('Flan', 'postres', '🧁', 2000, NULL, 0, 'Flan casero con caramelo.');
+**1. `src/hooks/useFinancialData.ts` — Línea 34**
+Agregar `product_id` al SELECT para que `costMap[item.product_id]` funcione (actualmente siempre es `undefined` porque `product_id` no se solicita):
+```
+.select("product_id, total, unit_price, quantity, cost_snapshot, pricing_tier_applied, orders!inner(status, created_at)")
 ```
 
-### Sin cambios adicionales necesarios
+**2. `src/hooks/useFinancialData.ts` — Líneas 106-108**
+Cambiar `realMargin` para que calcule siempre que haya revenue (sin exigir `realCost > 0`):
+```ts
+const realMargin = revenue > 0
+  ? ((revenue - realCost) / revenue) * 100
+  : null;
+```
 
-- `useProducts.ts` ya mapea cualquier categoría del DB
-- `ProductCatalog.tsx` ya itera el array `categories` — mostrará la pestaña automáticamente
-- Sistema de precios, financiero y pedidos funcionan sin modificaciones
+**3. `src/pages/admin/OwnerDashboard.tsx` — Línea 73**
+Eliminar `.filter((p: any) => p.hasRecipe)` para mostrar TODOS los productos en la tabla de precios. Productos sin costo mostrarán margen "—" (ya manejado por `currentMargin === null` cuando `cost = 0` y `price = 0`).
 
 ### Archivos
 
 | Archivo | Cambio |
 |---|---|
-| `src/data/products.ts` | Agregar `"postres"` al tipo y al array de categorías |
-| Base de datos (insert) | 4 productos de repostería |
+| `src/hooks/useFinancialData.ts` | Agregar `product_id` al select, fix `realMargin` |
+| `src/pages/admin/OwnerDashboard.tsx` | Eliminar filtro `hasRecipe` en pricing |
 
