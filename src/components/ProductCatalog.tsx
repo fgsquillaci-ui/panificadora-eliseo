@@ -3,6 +3,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { categories, type Product } from "@/data/products";
 import { useProducts } from "@/hooks/useProducts";
+import ciabattaImg from "@/assets/products/ciabatta.jpg";
+
+const productImages: Record<string, string> = {
+  ciabattas: ciabattaImg,
+};
 
 interface Props {
   onAddToCart: (product: Product) => void;
@@ -71,9 +76,12 @@ const ProductCatalog = ({ onAddToCart, isLoggedIn }: Props) => {
                 transition={{ delay: i * 0.05 }}
                 className="bg-card rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-all group"
               >
-                {/* Emoji visual placeholder */}
-                <div className="h-40 bg-secondary flex items-center justify-center text-6xl group-hover:scale-105 transition-transform">
-                  {product.emoji}
+                <div className="h-40 bg-secondary flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform">
+                  {productImages[product.id] ? (
+                    <img src={productImages[product.id]} alt={product.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-6xl">{product.emoji}</span>
+                  )}
                 </div>
                 <div className="p-5">
                   <div className="flex flex-col gap-1 mb-4">
