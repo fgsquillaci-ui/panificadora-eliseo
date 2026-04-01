@@ -8,7 +8,7 @@ export interface Product {
   minQtyMidTier?: number;
   minQtyWholesale?: number;
   unit?: string;
-  category: "panes" | "especiales" | "tortilleria";
+  category: "panes" | "especiales" | "tortilleria" | "postres";
   emoji: string;
 }
 
@@ -18,6 +18,7 @@ export const categories = [
   { id: "panes" as const, name: "Panes", emoji: "🍞" },
   { id: "especiales" as const, name: "Pizzas & Especiales", emoji: "🍕" },
   { id: "tortilleria" as const, name: "Tortitas", emoji: "🫓" },
+  { id: "postres" as const, name: "Postres", emoji: "🍰" },
 ];
 
 /** @deprecated Use getUnitPrice from src/lib/pricing.ts instead */
