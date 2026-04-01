@@ -233,7 +233,9 @@ Deno.serve(async (req) => {
           await tx`
             UPDATE public.ingredients
             SET stock_actual = ${Number(stockRow.total_stock)},
-                costo_unitario = ${Number(costRow.avg_cost_cents)}
+                costo_unitario = CASE WHEN ${Number(stockRow.total_stock)} > 0
+                  THEN ${Number(costRow.avg_cost_cents)}
+                  ELSE costo_unitario END
             WHERE id = ${ingId}
           `;
 
