@@ -3,14 +3,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { startOfDay, startOfWeek, startOfMonth, format } from "date-fns";
 import type { TierFilter } from "./useProductProfitability";
 
-export type Period = "hoy" | "semana" | "mes";
+export type Period = "hoy" | "semana" | "mes" | "todo" | "custom";
 
-function getPeriodStart(period: Period): string {
+export interface CustomRange {
+  from: string;
+  to: string;
+}
+
+function getPeriodStart(period: Period, customRange?: CustomRange): string {
+  if (period === "custom" && customRange) return customRange.from;
+  if (period === "todo") return "2020-01-01T00:00:00";
   const now = new Date();
   switch (period) {
     case "hoy": return format(startOfDay(now), "yyyy-MM-dd'T'HH:mm:ss");
     case "semana": return format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd'T'HH:mm:ss");
     case "mes": return format(startOfMonth(now), "yyyy-MM-dd'T'HH:mm:ss");
+    default: return format(startOfDay(now), "yyyy-MM-dd'T'HH:mm:ss");
   }
 }
 
