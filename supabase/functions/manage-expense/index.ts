@@ -129,10 +129,10 @@ async function cascadeResync(tx: any, ingredientId: string) {
       JOIN public.ingredients i ON i.id = r.ingredient_id
       WHERE r.product_id = ${product_id}
     `;
-    await tx`
-      UPDATE public.products SET unit_cost = ROUND(${Number(costCalc.unit_cost)})
-      WHERE id = ${product_id}
-    `;
+    const calcCost = Number(costCalc.unit_cost);
+    if (calcCost > 0) {
+      await tx`UPDATE public.products SET unit_cost = ROUND(${calcCost}) WHERE id = ${product_id}`;
+    }
   }
 }
 
