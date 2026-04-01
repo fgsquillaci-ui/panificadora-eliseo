@@ -196,7 +196,26 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
     });
 
     if (error || !result?.id) {
-      const errorMsg = result?.error || error?.message || "Error desconocido";
+      let errorMsg = "Error desconocido";
+      if (error) {
+        try {
+          // supabase.functions.invoke wraps non-2xx responses; parse the body
+          const ctx = error.context;
+          if (ctx instanceof Response) {
+            const body = await ctx.json();
+            errorMsg = body?.error || error.message;
+          } else if (typeof ctx === "string") {
+            const body = JSON.parse(ctx);
+            errorMsg = body?.error || error.message;
+          } else {
+            errorMsg = error.message;
+          }
+        } catch {
+          errorMsg = error.message || "Error desconocido";
+        }
+      } else {
+        errorMsg = result?.error || "Error desconocido";
+      }
       toast.error(`Error al crear pedido: ${errorMsg}`);
       logError("Atomic order creation failed", { error: errorMsg, customer: selectedCustomer?.name });
     } else {
