@@ -104,14 +104,14 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null, 
 
   useEffect(() => {
     fetchData();
-  }, [period, tierFilter]);
+  }, [period, tierFilter, customRange?.from, customRange?.to]);
 
   useEffect(() => {
     const ch1 = supabase.channel("fin-expenses").on("postgres_changes", { event: "*", schema: "public", table: "expenses" }, fetchData).subscribe();
     const ch2 = supabase.channel("fin-cash").on("postgres_changes", { event: "*", schema: "public", table: "cash_movements" }, fetchData).subscribe();
     const ch3 = supabase.channel("fin-orders").on("postgres_changes", { event: "*", schema: "public", table: "orders" }, fetchData).subscribe();
     return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); supabase.removeChannel(ch3); };
-  }, [period, tierFilter]);
+  }, [period, tierFilter, customRange?.from, customRange?.to]);
 
   const totalCashIn = cashMovements.filter(m => m.type === "ingreso").reduce((s, m) => s + m.amount, 0);
   const totalCashOut = cashMovements.filter(m => m.type !== "ingreso").reduce((s, m) => s + m.amount, 0);

@@ -154,7 +154,7 @@ export function useProductProfitability(period: Period, tierFilter: TierFilter =
       setLoading(false);
     };
     run();
-  }, [period, tierFilter]);
+  }, [period, tierFilter, customRange?.from, customRange?.to]);
 
   return { products: data, estimatedCost, loading };
 }
