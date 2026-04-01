@@ -83,6 +83,7 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null) 
     setExpenses(totalExpenses);
     setExpensesList(expensesRes.data || []);
     setCashMovements(cashRes.data || []);
+    setItemsMissingCost(totalMissingCost);
     setLoading(false);
   };
 
