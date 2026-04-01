@@ -187,7 +187,7 @@ Deno.serve(async (req) => {
               }
 
               if (remaining > 0) {
-                throw new Error(`Stock insuficiente: ${recipe.ingredient_name} (faltan ${remaining.toFixed(2)} ${recipe.ingredient_unit})`);
+                return { stockError: `Stock insuficiente: ${recipe.ingredient_name} (faltan ${remaining.toFixed(2)} ${recipe.ingredient_unit})` };
               }
 
               affectedIngredients.add(recipe.ingredient_id);
@@ -270,6 +270,13 @@ Deno.serve(async (req) => {
       });
 
       await sql.end();
+
+      if (result.stockError) {
+        return new Response(JSON.stringify({ error: result.stockError }), {
+          status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       return new Response(JSON.stringify({ id: result.id }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
