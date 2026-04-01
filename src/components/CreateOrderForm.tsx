@@ -219,7 +219,14 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
       toast.error(`Error al crear pedido: ${errorMsg}`);
       logError("Atomic order creation failed", { error: errorMsg, customer: selectedCustomer?.name });
     } else {
-      toast.success("¡Pedido creado!");
+      if (result?.warnings?.length > 0) {
+        toast.warning("Pedido creado con faltantes de stock", {
+          description: result.warnings.join(", "),
+          duration: 8000,
+        });
+      } else {
+        toast.success("¡Pedido creado!");
+      }
       onSuccess();
     }
     setSaving(false);

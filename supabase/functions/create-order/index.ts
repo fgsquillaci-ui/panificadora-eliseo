@@ -279,18 +279,12 @@ Deno.serve(async (req) => {
           VALUES (${orderId}, 'created', ${"total:" + body.total}, ${body.user_id})
         `;
 
-        return { id: orderId };
+        return { id: orderId, warnings };
       });
 
       await sql.end();
 
-      if (result.stockError) {
-        return new Response(JSON.stringify({ error: result.stockError }), {
-          status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      return new Response(JSON.stringify({ id: result.id }), {
+      return new Response(JSON.stringify({ id: result.id, warnings: result.warnings || [] }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (dbError: any) {
