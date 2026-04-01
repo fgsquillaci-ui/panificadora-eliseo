@@ -70,7 +70,7 @@ const OwnerDashboard = () => {
         const currentMargin = tierPrice && tierPrice > 0 ? ((tierPrice - cost) / tierPrice) * 100 : null;
         const suggestedPrice = targetMargin < 100 ? Math.round(cost / (1 - targetMargin / 100)) : cost;
         return { id: p.id, name: p.name, cost, price: tierPrice, targetMargin, currentMargin, suggestedPrice, hasRecipe: cost > 0 };
-      }).filter((p: any) => p.hasRecipe);
+      });
       
       setPricingData(rows);
     };
