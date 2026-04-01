@@ -1,36 +1,22 @@
+## Ajustar video Hero para mostrar más escena
 
+### Problema
 
-## Reemplazar imagen Hero por video de fondo
+`object-cover` recorta el video para llenar todo el contenedor, ocultando partes de la escena.
 
-### Cambios
+### Solución
 
-**1. Copiar video al proyecto**
+Cambiar `object-cover` a `object-contain` en el `<video>` (línea 15), y agregar un fondo claro (mismo color de la pagina) al contenedor del video para que los bordes laterales no queden blancos.
 
-`user-uploads://video_portada.mp4` → `public/video/video_portada.mp4`
-
-Se usa `public/` porque los videos como fondo se referencian mejor con URL directa (evita problemas de bundling con archivos grandes).
-
-**2. Modificar `src/components/Hero.tsx`**
-
-- Reemplazar el `<img>` (líneas 10-13) por un `<video>` con `autoPlay`, `muted`, `loop`, `playsInline` y `object-cover`
-- Eliminar el import de `heroBread` (línea 2, ya no se usa)
-- Mantener el overlay oscuro (`bg-black/20`) y todo el contenido (logo, textos, botón CTA) sin cambios
-
-```tsx
-<video
-  autoPlay
-  muted
-  loop
-  playsInline
-  className="w-full h-full object-cover"
-  src="/video/video_portada.mp4"
-/>
+```
+object-cover → object-contain
 ```
 
-### Archivos
+Agregar `bg-black` al `<div>` contenedor (línea 9) para que el espacio no cubierto por el video sea del color de la pagina principal, integrándose con el overlay.
 
-| Acción | Archivo |
-|--------|---------|
-| Copiar | `public/video/video_portada.mp4` |
-| Editar | `src/components/Hero.tsx` |
+### Archivo
 
+
+| Archivo                   | Cambio                                                              |
+| ------------------------- | ------------------------------------------------------------------- |
+| `src/components/Hero.tsx` | `object-cover` → `object-contain`, agregar `bg-black` al contenedor |
