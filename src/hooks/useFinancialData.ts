@@ -22,7 +22,7 @@ function getPeriodStart(period: Period, customRange?: CustomRange): string {
   }
 }
 
-export function useFinancialData(period: Period, tierFilter: TierFilter = null) {
+export function useFinancialData(period: Period, tierFilter: TierFilter = null, customRange?: CustomRange) {
   const [revenue, setRevenue] = useState(0);
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [realCost, setRealCost] = useState(0);
