@@ -112,7 +112,9 @@ async function cascadeResync(tx: any, ingredientId: string) {
   await tx`
     UPDATE public.ingredients
     SET stock_actual = ${Number(stockRow.total_stock)},
-        costo_unitario = ${Number(costRow.avg_cost_cents)}
+        costo_unitario = CASE WHEN ${Number(stockRow.total_stock)} > 0
+          THEN ${Number(costRow.avg_cost_cents)}
+          ELSE costo_unitario END
     WHERE id = ${ingredientId}
   `;
 
@@ -127,10 +129,10 @@ async function cascadeResync(tx: any, ingredientId: string) {
       JOIN public.ingredients i ON i.id = r.ingredient_id
       WHERE r.product_id = ${product_id}
     `;
-    await tx`
-      UPDATE public.products SET unit_cost = ROUND(${Number(costCalc.unit_cost)})
-      WHERE id = ${product_id}
-    `;
+    const calcCost = Number(costCalc.unit_cost);
+    if (calcCost > 0) {
+      await tx`UPDATE public.products SET unit_cost = ROUND(${calcCost}) WHERE id = ${product_id}`;
+    }
   }
 }
 
