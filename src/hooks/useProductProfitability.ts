@@ -50,7 +50,8 @@ export function useProductProfitability(period: Period, tierFilter: TierFilter =
   useEffect(() => {
     const run = async () => {
       setLoading(true);
-      const start = getPeriodStart(period);
+      const start = getPeriodStart(period, customRange);
+      const end = period === "custom" && customRange ? customRange.to : undefined;
 
       let query = supabase
         .from("order_items")
@@ -58,9 +59,8 @@ export function useProductProfitability(period: Period, tierFilter: TierFilter =
         .eq("orders.status", "entregado" as any)
         .gte("orders.created_at", start);
 
-      if (tierFilter) {
-        query = query.eq("pricing_tier_applied", tierFilter);
-      }
+      if (end) query = query.lte("orders.created_at", end);
+      if (tierFilter) query = query.eq("pricing_tier_applied", tierFilter);
 
       const [{ data: items }, { data: productRows }] = await Promise.all([
         query,
