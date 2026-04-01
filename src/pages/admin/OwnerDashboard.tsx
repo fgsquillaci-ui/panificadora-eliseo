@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,25 +6,79 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";  // still used in CostAnalysis
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useFinancialData, type Period } from "@/hooks/useFinancialData";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { useFinancialData, type Period, type CustomRange } from "@/hooks/useFinancialData";
 import { useProductProfitability, type TierFilter } from "@/hooks/useProductProfitability";
 import { useIngredients } from "@/hooks/useIngredients";
 import { usePurchases } from "@/hooks/usePurchases";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Percent, Wallet, BarChart3, RefreshCw, Tag, AlertCircle } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, AlertTriangle, Percent, Wallet, BarChart3, RefreshCw, Tag, AlertCircle, CalendarIcon } from "lucide-react";
 import { formatCurrency } from "@/utils/currency";
+import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { es } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 const fmt = formatCurrency;
 
 const OwnerDashboard = () => {
   const [period, setPeriod] = useState<Period>("hoy");
   const [tierFilter, setTierFilter] = useState<TierFilter>(null);
-  const { revenue, expenses, realCost, realProfit, realMargin, realCostMissing, expensesList, cashMovements, totalWithdrawals, loading, itemsMissingCost, hasPartialMissingCost } = useFinancialData(period, tierFilter);
-  const { products, estimatedCost, loading: profitLoading } = useProductProfitability(period, tierFilter);
+  const [customRange, setCustomRange] = useState<CustomRange | undefined>(undefined);
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [popoverOpen, setPopoverOpen] = useState(false);
+
+  const { revenue, expenses, realCost, realProfit, realMargin, realCostMissing, expensesList, cashMovements, totalWithdrawals, loading, itemsMissingCost, hasPartialMissingCost } = useFinancialData(period, tierFilter, customRange);
+  const { products, estimatedCost, loading: profitLoading } = useProductProfitability(period, tierFilter, customRange);
   const { ingredients, lowStock, update: updateIngredient } = useIngredients();
   const { purchases: allPurchases } = usePurchases();
+
+  // Generate last 6 months options
+  const monthOptions = useMemo(() => {
+    const opts = [];
+    for (let i = 0; i < 6; i++) {
+      const d = subMonths(new Date(), i);
+      const label = format(d, "MMMM yyyy", { locale: es });
+      const from = format(startOfMonth(d), "yyyy-MM-dd'T'HH:mm:ss");
+      const to = format(endOfMonth(d), "yyyy-MM-dd'T'23:59:59");
+      opts.push({ label: label.charAt(0).toUpperCase() + label.slice(1), from, to, value: `month-${i}` });
+    }
+    return opts;
+  }, []);
+
+  const handleQuickPeriod = (p: Period) => {
+    setPeriod(p);
+    setCustomRange(undefined);
+    setDateFrom(undefined);
+    setDateTo(undefined);
+  };
+
+  const handleMonthSelect = (value: string) => {
+    const opt = monthOptions.find(m => m.value === value);
+    if (opt) {
+      setPeriod("custom");
+      setCustomRange({ from: opt.from, to: opt.to });
+      setPopoverOpen(false);
+    }
+  };
+
+  const applyCustomRange = () => {
+    if (dateFrom && dateTo) {
+      setPeriod("custom");
+      setCustomRange({
+        from: format(dateFrom, "yyyy-MM-dd'T'00:00:00"),
+        to: format(dateTo, "yyyy-MM-dd'T'23:59:59"),
+      });
+      setPopoverOpen(false);
+    }
+  };
+
+  const periodLabel = period === "custom" && customRange
+    ? `${format(new Date(customRange.from), "dd/MM/yy")} – ${format(new Date(customRange.to), "dd/MM/yy")}`
+    : null;
 
   // Pending payments
   const [pendingPayments, setPendingPayments] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
