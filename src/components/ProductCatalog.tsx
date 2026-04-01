@@ -95,7 +95,7 @@ const ProductCatalog = ({ onAddToCart, isLoggedIn }: Props) => {
                       por {product.unit}
                     </span>
                   )}
-                  {product.wholesalePrice && product.wholesalePrice > 0 && (
+                  {product.wholesalePrice && product.wholesalePrice > 0 && product.wholesalePrice !== product.price && (
                     <div className="mt-1 mb-3">
                       <span className="inline-block text-xs font-body font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">
                         Mayorista: ${product.wholesalePrice.toLocaleString("es-AR")}
