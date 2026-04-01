@@ -1,39 +1,58 @@
 
 
-## Corregir `manage-expense` — mismo patrón que `create-order`
+## Fix: Integridad de datos financieros históricos (versión final)
 
-### Problema encontrado
+### Cambios
 
-La función `manage-expense/index.ts` tiene el mismo bug que ya se corrigió en `create-order`: cuando el stock se agota, sobreescribe `costo_unitario` y `unit_cost` con 0.
+**1. `src/hooks/useFinancialData.ts`**
 
-El resto del sistema está correcto:
-- `useFinancialData.ts` usa `cost_snapshot` para costo real ✅
-- `useRecipes.ts` mantiene `totalCost` aunque haya stock cero ✅
-- `create-order/index.ts` ya protege ambos campos ✅
-- `OwnerDashboard.tsx` muestra "N/D" cuando falta costo histórico ✅
-
-### Cambio único
-
-**`supabase/functions/manage-expense/index.ts`** — función `cascadeResync` (líneas 112-133):
-
-1. **Línea 115**: Agregar `CASE WHEN` para no sobreescribir `costo_unitario` cuando stock = 0:
-```sql
-costo_unitario = CASE WHEN ${Number(stockRow.total_stock)} > 0
-  THEN ${Number(costRow.avg_cost_cents)}
-  ELSE costo_unitario END
-```
-
-2. **Línea 130-133**: Solo actualizar `unit_cost` si el costo calculado > 0:
+- Línea 68-73: Eliminar `if (costSnap > 0)` y reemplazar con detección de `null/undefined`:
 ```ts
-const calcCost = Number(costCalc.unit_cost);
-if (calcCost > 0) {
-  await tx`UPDATE public.products SET unit_cost = ROUND(${calcCost}) WHERE id = ${product_id}`;
+const costSnap = item.cost_snapshot;
+if (costSnap === null || costSnap === undefined) {
+  totalMissingCost++;
+} else {
+  totalRealCost += costSnap;
 }
 ```
+- Agregar variable `totalMissingCost = 0` junto a las otras (línea 56)
+- Agregar estado `itemsMissingCost` y setearlo con `totalMissingCost`
+- Línea 103: Cambiar `realMargin`:
+```ts
+const realMargin = revenue > 0 && realCost > 0
+  ? ((revenue - realCost) / revenue) * 100
+  : (revenue > 0 ? null : 0);
+```
+- Agregar `hasPartialMissingCost = realCost > 0 && itemsMissingCost > 0`
+- Exportar: `itemsMissingCost`, `hasPartialMissingCost`
 
-### Archivo afectado
+**2. `src/hooks/useProductProfitability.ts`**
+
+- Líneas 97-101: Reemplazar uso de `products.unit_cost` por `cost_snapshot`:
+```ts
+const costSnap = item.cost_snapshot;
+if (costSnap !== null && costSnap !== undefined) {
+  agg[pid].cost += costSnap;
+  agg[pid].hasCost = true;
+}
+```
+- Agregar `missingCostCount` al agregador para tracking
+- Eliminar `unit_cost` del query de products (mantener precios para price deviation)
+
+**3. `src/pages/admin/OwnerDashboard.tsx`**
+
+- Línea 24: Agregar `itemsMissingCost`, `hasPartialMissingCost` al destructuring
+- Después de los alerts existentes (~línea 179), agregar warnings:
+  - Si `itemsMissingCost > 0`: "⚠️ Falta costo histórico en {N} venta(s)"
+  - Si `hasPartialMissingCost`: "⚠️ Margen parcialmente confiable"
+  - Si `realCost === 0 && revenue > 0`: "⚠️ Ganancia no confiable — no hay costos históricos"
+- Línea 136 (Margen real KPI): si `realMargin === null`, mostrar "—" con tooltip "No se puede calcular — falta costo histórico"
+
+### Archivos
 
 | Archivo | Cambio |
 |---|---|
-| `supabase/functions/manage-expense/index.ts` | Proteger `costo_unitario` y `unit_cost` de reset a 0 |
+| `src/hooks/useFinancialData.ts` | Eliminar filtro `costSnap > 0`, agregar `itemsMissingCost` y `hasPartialMissingCost` |
+| `src/hooks/useProductProfitability.ts` | Usar `cost_snapshot` histórico en vez de `products.unit_cost` |
+| `src/pages/admin/OwnerDashboard.tsx` | Warnings de datos incompletos, fix display de margen null |
 
