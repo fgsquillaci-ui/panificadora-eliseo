@@ -21,7 +21,7 @@ const fmt = formatCurrency;
 const OwnerDashboard = () => {
   const [period, setPeriod] = useState<Period>("hoy");
   const [tierFilter, setTierFilter] = useState<TierFilter>(null);
-  const { revenue, expenses, realCost, realProfit, expensesList, cashMovements, totalWithdrawals, loading } = useFinancialData(period, tierFilter);
+  const { revenue, expenses, realCost, realProfit, realMargin, realCostMissing, expensesList, cashMovements, totalWithdrawals, loading } = useFinancialData(period, tierFilter);
   const { products, estimatedCost, loading: profitLoading } = useProductProfitability(period, tierFilter);
   const { ingredients, lowStock, update: updateIngredient } = useIngredients();
   const { purchases: allPurchases } = usePurchases();
@@ -133,7 +133,7 @@ const OwnerDashboard = () => {
           <KpiCard label="Costos est." value={fmt(estimatedCost + expenses)} icon={<TrendingDown className="w-4 h-4" />} color="text-orange-500" tooltip="Proyección basada en costo actual de recetas" />
           <KpiCard label="Ganancia est." value={fmt(estimatedProfit)} icon={<TrendingUp className="w-4 h-4" />} color={estimatedProfit >= 0 ? "text-green-600" : "text-destructive"} tooltip="Proyección basada en costo actual de recetas" />
           <KpiCard label="Ganancia real" value={fmt(realProfit)} icon={<TrendingUp className="w-4 h-4" />} color={realProfit >= 0 ? "text-green-600" : "text-destructive"} tooltip="Basada en costo histórico real (FIFO) de cada pedido" />
-          <KpiCard label="Margen" value={`${margin.toFixed(1)}%`} icon={<Percent className="w-4 h-4" />} color={margin >= 30 ? "text-green-600" : margin >= 15 ? "text-yellow-600" : "text-destructive"} />
+          <KpiCard label="Margen real" value={realCostMissing ? "N/D" : realMargin !== null ? `${realMargin.toFixed(1)}%` : "0%"} icon={<Percent className="w-4 h-4" />} color={realCostMissing ? "text-muted-foreground" : (realMargin ?? 0) >= 30 ? "text-green-600" : (realMargin ?? 0) >= 15 ? "text-yellow-600" : "text-destructive"} tooltip={realCostMissing ? "Margen no disponible — falta costo histórico" : "Basado en costo real FIFO de cada pedido"} />
           <KpiCard label="Disponible" value={fmt(available)} icon={<Wallet className="w-4 h-4" />} color="text-green-600" />
         </div>
 
@@ -211,7 +211,7 @@ const OwnerDashboard = () => {
                         </td>
                         <td className="py-2 text-right">{p.units_sold}</td>
                         <td className="py-2 text-right">{fmt(p.revenue)}</td>
-                        <td className="py-2 text-right">{p.hasRecipe ? fmt(p.cost) : <span className="text-muted-foreground text-xs">Sin costo</span>}</td>
+                        <td className="py-2 text-right">{p.hasRecipe ? (p.cost > 0 ? fmt(p.cost) : <span className="text-muted-foreground text-xs">Costo no disponible</span>) : <span className="text-muted-foreground text-xs">Sin costo</span>}</td>
                         <td className="py-2 text-right">
                           {p.margin !== null ? (
                             <Badge variant={p.margin >= 30 ? "default" : p.margin >= 15 ? "secondary" : "destructive"}>

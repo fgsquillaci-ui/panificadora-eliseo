@@ -87,7 +87,7 @@ export function useRecipes(productId?: string) {
   };
 
   const hasZeroStock = recipes.some(r => r.ingredient_stock === 0);
-  const totalCost = hasZeroStock ? null : recipes.reduce((s, r) => s + r.line_cost, 0);
+  const totalCost = recipes.length > 0 ? recipes.reduce((s, r) => s + r.line_cost, 0) : null;
 
   // Validation logging
   recipes.forEach(r => {
