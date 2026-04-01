@@ -34,8 +34,10 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null, 
 
   const fetchData = async () => {
     setLoading(true);
-    const start = getPeriodStart(period);
+    const start = getPeriodStart(period, customRange);
     const startDate = format(new Date(start), "yyyy-MM-dd");
+    const end = period === "custom" && customRange ? customRange.to : undefined;
+    const endDate = end ? format(new Date(end), "yyyy-MM-dd") : undefined;
 
     let itemsQuery = supabase
       .from("order_items")
@@ -43,14 +45,19 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null, 
       .eq("orders.status", "entregado" as any)
       .gte("orders.created_at", start);
 
-    if (tierFilter) {
-      itemsQuery = itemsQuery.eq("pricing_tier_applied", tierFilter);
-    }
+    if (end) itemsQuery = itemsQuery.lte("orders.created_at", end);
+    if (tierFilter) itemsQuery = itemsQuery.eq("pricing_tier_applied", tierFilter);
+
+    let expensesQuery = supabase.from("expenses").select("*").gte("date", startDate).order("date", { ascending: false });
+    if (endDate) expensesQuery = expensesQuery.lte("date", endDate);
+
+    let cashQuery = supabase.from("cash_movements").select("*").gte("date", startDate).order("date", { ascending: false });
+    if (endDate) cashQuery = cashQuery.lte("date", endDate);
 
     const [itemsRes, expensesRes, cashRes, productsRes] = await Promise.all([
       itemsQuery,
-      supabase.from("expenses").select("*").gte("date", startDate).order("date", { ascending: false }),
-      supabase.from("cash_movements").select("*").gte("date", startDate).order("date", { ascending: false }),
+      expensesQuery,
+      cashQuery,
       supabase.from("products").select("id, unit_cost"),
     ]);
 
