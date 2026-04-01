@@ -190,7 +190,7 @@ Deno.serve(async (req) => {
 
       await sql.end();
 
-      return new Response(JSON.stringify({ id: result.id, warnings: result.warnings || [] }), {
+      return new Response(JSON.stringify({ id: result.id }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (dbError: any) {
