@@ -48,6 +48,7 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
   const [paymentMethod, setPaymentMethod] = useState("");
   const [saving, setSaving] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().split("T")[0]);
 
   const customerPriceType = selectedCustomer?.price_type ?? "minorista";
 
