@@ -29,6 +29,7 @@ interface OrderPayload {
   created_by: string;
   reseller_name: string | null;
   payment_method: string;
+  delivery_date?: string;
   items: OrderItem[];
 }
 
@@ -119,6 +120,11 @@ Deno.serve(async (req) => {
       });
     }
 
+    const deliveryDate =
+      body.delivery_date && !isNaN(Date.parse(body.delivery_date))
+        ? new Date(body.delivery_date).toISOString().slice(0, 10)
+        : new Date().toISOString().slice(0, 10);
+
     // Execute atomic transaction
     const dbUrl = Deno.env.get("SUPABASE_DB_URL")!;
     const { default: postgres } = await import("https://deno.land/x/postgresjs@v3.4.5/mod.js");
@@ -131,12 +137,14 @@ Deno.serve(async (req) => {
           INSERT INTO public.orders (
             customer_name, customer_phone, customer_id,
             address, delivery_type, total, status,
-            user_id, created_by, reseller_name, payment_method
+            user_id, created_by, reseller_name, payment_method,
+            delivery_date
           ) VALUES (
             ${body.customer_name}, ${body.customer_phone}, ${body.customer_id},
             ${body.address}, ${body.delivery_type}, ${Math.round(body.total)},
             ${body.status || "pendiente"}, ${body.user_id}, ${body.created_by},
-            ${body.reseller_name}, ${body.payment_method}
+            ${body.reseller_name}, ${body.payment_method},
+            ${deliveryDate}
           ) RETURNING id
         `;
         const orderId = order.id;
