@@ -29,6 +29,7 @@ interface OrderPayload {
   created_by: string;
   reseller_name: string | null;
   payment_method: string;
+  delivery_date?: string;
   items: OrderItem[];
 }
 
