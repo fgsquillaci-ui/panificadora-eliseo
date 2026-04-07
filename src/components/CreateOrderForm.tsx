@@ -48,6 +48,7 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
   const [paymentMethod, setPaymentMethod] = useState("");
   const [saving, setSaving] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().split("T")[0]);
 
   const customerPriceType = selectedCustomer?.price_type ?? "minorista";
 
@@ -192,6 +193,7 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
         reseller_name: resellerName,
         payment_method: paymentMethod,
         items,
+        delivery_date: deliveryDate || new Date().toISOString().split("T")[0],
       },
     });
 
@@ -245,6 +247,16 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
             <p className="font-body text-sm">{address.trim() ? `📍 ${address}` : "🏪 Retiro en local"}</p>
           </div>
           <div className="space-y-1">
+            <p className="font-body text-xs text-muted-foreground">Fecha de entrega</p>
+            <p className="font-body text-sm">
+              📅 {new Date(deliveryDate + "T12:00:00").toLocaleDateString("es-AR", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </p>
+          </div>
+          <div className="space-y-1">
             <p className="font-body text-xs text-muted-foreground">Método de pago</p>
             <p className="font-body text-sm">{paymentLabel}</p>
           </div>
@@ -287,6 +299,16 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
       <div className="space-y-1.5">
         <Label className="font-body text-xs">Dirección (vacío = retiro en local)</Label>
         <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Av. Corrientes 1234" />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="font-body text-xs font-semibold">Fecha de entrega</Label>
+        <Input
+          type="date"
+          value={deliveryDate}
+          min={new Date().toISOString().split("T")[0]}
+          onChange={(e) => setDeliveryDate(e.target.value)}
+        />
       </div>
 
       <div className="space-y-1.5">
