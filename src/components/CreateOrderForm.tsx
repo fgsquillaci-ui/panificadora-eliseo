@@ -247,6 +247,16 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
             <p className="font-body text-sm">{address.trim() ? `📍 ${address}` : "🏪 Retiro en local"}</p>
           </div>
           <div className="space-y-1">
+            <p className="font-body text-xs text-muted-foreground">Fecha de entrega</p>
+            <p className="font-body text-sm">
+              📅 {new Date(deliveryDate + "T12:00:00").toLocaleDateString("es-AR", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </p>
+          </div>
+          <div className="space-y-1">
             <p className="font-body text-xs text-muted-foreground">Método de pago</p>
             <p className="font-body text-sm">{paymentLabel}</p>
           </div>
