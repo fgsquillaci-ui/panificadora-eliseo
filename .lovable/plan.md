@@ -1,35 +1,51 @@
 
 
-## Add `delivery_date` to create-order (safe implementation)
+## Add delivery_date field to CreateOrderForm
 
-### Changes
+### Changes — `src/components/CreateOrderForm.tsx`
 
-**1. Migration — Add `delivery_date` column**
-
-```sql
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS delivery_date date;
-UPDATE public.orders SET delivery_date = created_at::date WHERE delivery_date IS NULL;
-ALTER TABLE public.orders ALTER COLUMN delivery_date SET DEFAULT CURRENT_DATE;
+**1. State (line 50)** — Add after `showConfirmation`:
+```ts
+const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().split("T")[0]);
 ```
 
-**2. `supabase/functions/create-order/index.ts`**
+**2. Date input (line 291, between address and payment method)** — Insert:
+```tsx
+<div className="space-y-1.5">
+  <Label className="font-body text-xs font-semibold">Fecha de entrega</Label>
+  <Input
+    type="date"
+    value={deliveryDate}
+    min={new Date().toISOString().split("T")[0]}
+    onChange={(e) => setDeliveryDate(e.target.value)}
+  />
+</div>
+```
 
-- **Line 32**: Add `delivery_date?: string;` to `OrderPayload` interface
-- **Line 127** (before transaction): Add safe date extraction:
-  ```ts
-  const deliveryDate =
-    body.delivery_date && !isNaN(Date.parse(body.delivery_date))
-      ? new Date(body.delivery_date).toISOString().slice(0, 10)
-      : new Date().toISOString().slice(0, 10);
-  ```
-- **Lines 130-141**: Update INSERT to include `delivery_date` column and `${deliveryDate}` value
+**3. Payload (line 194)** — Add after `items,`:
+```ts
+delivery_date: deliveryDate || new Date().toISOString().split("T")[0],
+```
 
-No other logic is modified — cost calculation, margin, items, and transaction flow remain untouched.
+**4. Confirmation screen (line 246, after address display, before payment method)** — Insert:
+```tsx
+<div className="space-y-1">
+  <p className="font-body text-xs text-muted-foreground">Fecha de entrega</p>
+  <p className="font-body text-sm">
+    📅 {new Date(deliveryDate + "T12:00:00").toLocaleDateString("es-AR", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    })}
+  </p>
+</div>
+```
+
+Note: `T12:00:00` prevents timezone offset issues that could shift the displayed date by one day.
 
 ### Files
 
-| Action | File |
+| File | Change |
 |---|---|
-| Migration | Add `delivery_date` column, backfill from `created_at`, set default |
-| Edit | `supabase/functions/create-order/index.ts` — interface + extraction + INSERT |
+| `src/components/CreateOrderForm.tsx` | Add state, date input with `min`, safe payload, formatted confirmation display |
 
