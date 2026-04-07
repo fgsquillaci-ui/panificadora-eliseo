@@ -120,6 +120,11 @@ Deno.serve(async (req) => {
       });
     }
 
+    const deliveryDate =
+      body.delivery_date && !isNaN(Date.parse(body.delivery_date))
+        ? new Date(body.delivery_date).toISOString().slice(0, 10)
+        : new Date().toISOString().slice(0, 10);
+
     // Execute atomic transaction
     const dbUrl = Deno.env.get("SUPABASE_DB_URL")!;
     const { default: postgres } = await import("https://deno.land/x/postgresjs@v3.4.5/mod.js");
