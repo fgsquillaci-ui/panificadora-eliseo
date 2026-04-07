@@ -137,12 +137,14 @@ Deno.serve(async (req) => {
           INSERT INTO public.orders (
             customer_name, customer_phone, customer_id,
             address, delivery_type, total, status,
-            user_id, created_by, reseller_name, payment_method
+            user_id, created_by, reseller_name, payment_method,
+            delivery_date
           ) VALUES (
             ${body.customer_name}, ${body.customer_phone}, ${body.customer_id},
             ${body.address}, ${body.delivery_type}, ${Math.round(body.total)},
             ${body.status || "pendiente"}, ${body.user_id}, ${body.created_by},
-            ${body.reseller_name}, ${body.payment_method}
+            ${body.reseller_name}, ${body.payment_method},
+            ${deliveryDate}
           ) RETURNING id
         `;
         const orderId = order.id;
