@@ -302,6 +302,16 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
       </div>
 
       <div className="space-y-1.5">
+        <Label className="font-body text-xs font-semibold">Fecha de entrega</Label>
+        <Input
+          type="date"
+          value={deliveryDate}
+          min={new Date().toISOString().split("T")[0]}
+          onChange={(e) => setDeliveryDate(e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-1.5">
         <Label className="font-body text-xs font-semibold">Método de pago *</Label>
         <Select value={paymentMethod} onValueChange={setPaymentMethod}>
           <SelectTrigger className="text-sm">
