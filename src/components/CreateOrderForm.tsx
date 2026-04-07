@@ -193,6 +193,7 @@ const CreateOrderForm = ({ createdBy, resellerName, onSuccess }: CreateOrderForm
         reseller_name: resellerName,
         payment_method: paymentMethod,
         items,
+        delivery_date: deliveryDate || new Date().toISOString().split("T")[0],
       },
     });
 
