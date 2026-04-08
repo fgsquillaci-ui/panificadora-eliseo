@@ -184,8 +184,14 @@ const ExpensesPage = () => {
                     {recurringItems.map(r => (
                       <tr key={r.id} className="border-b last:border-0 hover:bg-muted/50">
                         <td className="py-2 px-3 font-body">{r.name}</td>
-                        <td className="py-2 px-3 text-right font-medium">
-                          {r.amount !== null ? fmt(r.amount) : <Badge variant="outline" className="text-xs">Variable</Badge>}
+        <td className="py-2 px-3 text-right font-medium">
+                          {r.amount !== null && r.estimated === true ? (
+                            <span className="flex items-center justify-end gap-1.5">{fmt(r.amount)} <Badge variant="secondary" className="text-xs">Estimado</Badge></span>
+                          ) : r.amount !== null ? (
+                            fmt(r.amount)
+                          ) : (
+                            <Badge variant="outline" className="text-xs">Variable sin estimación</Badge>
+                          )}
                         </td>
                         <td className="py-2 px-3 font-body">{r.frequency === "monthly" ? "Mensual" : "Semanal"}</td>
                         <td className="py-2 px-3 font-body">
@@ -331,6 +337,7 @@ const RecurringExpenseForm = ({
   const [dayOfMonth, setDayOfMonth] = useState(initialData?.day_of_month?.toString() || "1");
   const [dayOfWeek, setDayOfWeek] = useState(initialData?.day_of_week?.toString() || "1");
   const [startDate, setStartDate] = useState(initialData?.start_date || new Date().toISOString().split("T")[0]);
+  const [estimated, setEstimated] = useState(initialData?.estimated ?? false);
   const [active, setActive] = useState(initialData?.active ?? true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -344,6 +351,7 @@ const RecurringExpenseForm = ({
       day_of_week: frequency === "weekly" ? Number(dayOfWeek) : null,
       start_date: startDate,
       active,
+      estimated,
     });
     setSubmitting(false);
   };
@@ -391,12 +399,22 @@ const RecurringExpenseForm = ({
         <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
       </div>
       <div className="flex items-center justify-between">
+        <Label className="text-xs font-semibold">Es gasto variable estimado</Label>
+        <Switch checked={estimated} onCheckedChange={v => {
+          setEstimated(v);
+          if (v && !amount.trim()) setAmount("");
+        }} />
+      </div>
+      {estimated && (
+        <p className="text-xs text-muted-foreground -mt-2">El monto es requerido para gastos estimados</p>
+      )}
+      <div className="flex items-center justify-between">
         <Label className="text-xs font-semibold">Activo</Label>
         <Switch checked={active} onCheckedChange={setActive} />
       </div>
       <div className="flex gap-2 justify-end pt-2">
         <Button variant="outline" onClick={onClose}>Cancelar</Button>
-        <Button onClick={handleSubmit} disabled={submitting || !name.trim()}>
+      <Button onClick={handleSubmit} disabled={submitting || !name.trim() || (estimated && !amount.trim())}>
           {initialData ? "Guardar" : "Crear"}
         </Button>
       </div>

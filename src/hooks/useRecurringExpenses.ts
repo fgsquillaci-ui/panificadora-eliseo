@@ -14,6 +14,7 @@ export interface RecurringExpense {
   day_of_week: number | null;
   start_date: string;
   active: boolean;
+  estimated: boolean;
   user_id: string;
   created_at: string;
 }
@@ -26,10 +27,12 @@ export type RecurringExpenseInput = {
   day_of_week: number | null;
   start_date: string;
   active: boolean;
+  estimated: boolean;
 };
 
 function validateInput(input: RecurringExpenseInput): string | null {
   if (!input.name.trim()) return "El nombre es requerido";
+  if (input.estimated === true && (input.amount === null || input.amount <= 0)) return "Los gastos estimados requieren un monto";
   if (!["monthly", "weekly"].includes(input.frequency)) return "Frecuencia inválida";
   if (input.frequency === "monthly") {
     if (input.day_of_month === null || input.day_of_month < 1 || input.day_of_month > 31) return "Día del mes inválido (1-31)";
@@ -61,6 +64,22 @@ function getPeriodRange(period: Period, customRange?: CustomRange): { from: Date
   }
 }
 
+function calcItemProjection(item: RecurringExpense, from: Date, to: Date): number {
+  if (!item.active || item.amount === null || item.amount <= 0) return 0;
+  const startDate = parseISO(item.start_date);
+  const effectiveFrom = from > startDate ? from : startDate;
+  if (effectiveFrom > to) return 0;
+
+  const days = eachDayOfInterval({ start: effectiveFrom, end: to });
+
+  if (item.frequency === "monthly" && item.day_of_month !== null) {
+    return days.filter(d => getDate(d) === item.day_of_month).length * item.amount;
+  } else if (item.frequency === "weekly" && item.day_of_week !== null) {
+    return days.filter(d => getDay(d) === item.day_of_week).length * item.amount;
+  }
+  return 0;
+}
+
 export function calcProjectedForPeriod(
   items: RecurringExpense[],
   period: Period,
@@ -68,25 +87,32 @@ export function calcProjectedForPeriod(
 ): number {
   const { from, to } = getPeriodRange(period, customRange);
   let total = 0;
+  for (const item of items) {
+    total += calcItemProjection(item, from, to);
+  }
+  return total;
+}
+
+export function calcProjectedBreakdown(
+  items: RecurringExpense[],
+  period: Period,
+  customRange?: CustomRange
+): { fixed: number; estimated: number; total: number } {
+  const { from, to } = getPeriodRange(period, customRange);
+  let fixed = 0;
+  let estimated = 0;
 
   for (const item of items) {
-    if (!item.active || item.amount === null || item.amount <= 0) continue;
-    const startDate = parseISO(item.start_date);
-    const effectiveFrom = from > startDate ? from : startDate;
-    if (effectiveFrom > to) continue;
-
-    const days = eachDayOfInterval({ start: effectiveFrom, end: to });
-
-    if (item.frequency === "monthly" && item.day_of_month !== null) {
-      const occurrences = days.filter(d => getDate(d) === item.day_of_month).length;
-      total += occurrences * item.amount;
-    } else if (item.frequency === "weekly" && item.day_of_week !== null) {
-      const occurrences = days.filter(d => getDay(d) === item.day_of_week).length;
-      total += occurrences * item.amount;
+    const projection = calcItemProjection(item, from, to);
+    if (projection === 0) continue;
+    if (item.estimated === true) {
+      estimated += projection;
+    } else {
+      fixed += projection;
     }
   }
 
-  return total;
+  return { fixed, estimated, total: fixed + estimated };
 }
 
 export function useRecurringExpenses() {
@@ -126,6 +152,7 @@ export function useRecurringExpenses() {
       day_of_week: input.day_of_week,
       start_date: input.start_date,
       active: input.active,
+      estimated: input.estimated,
       user_id: user.id,
     } as any);
 
@@ -146,6 +173,7 @@ export function useRecurringExpenses() {
       day_of_week: input.day_of_week,
       start_date: input.start_date,
       active: input.active,
+      estimated: input.estimated,
     } as any).eq("id", id);
 
     if (error) { toast.error("Error al actualizar"); return false; }
@@ -165,8 +193,9 @@ export function useRecurringExpenses() {
     if (error) toast.error("Error al actualizar");
   };
 
-  const fixedItems = items.filter(i => i.amount !== null);
+  const fixedItems = items.filter(i => i.amount !== null && i.estimated !== true);
+  const estimatedItems = items.filter(i => i.amount !== null && i.estimated === true);
   const variableItems = items.filter(i => i.amount === null);
 
-  return { items, fixedItems, variableItems, loading, create, update, remove, toggleActive, refetch: fetch };
+  return { items, fixedItems, estimatedItems, variableItems, loading, create, update, remove, toggleActive, refetch: fetch };
 }
