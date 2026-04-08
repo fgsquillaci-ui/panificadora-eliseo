@@ -351,6 +351,7 @@ const RecurringExpenseForm = ({
       day_of_week: frequency === "weekly" ? Number(dayOfWeek) : null,
       start_date: startDate,
       active,
+      estimated,
     });
     setSubmitting(false);
   };
