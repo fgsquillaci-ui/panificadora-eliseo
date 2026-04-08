@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { useFinancialData, type Period, type CustomRange } from "@/hooks/useFinancialData";
 import { useProductProfitability, type TierFilter } from "@/hooks/useProductProfitability";
+import { useRecurringExpenses, calcProjectedForPeriod } from "@/hooks/useRecurringExpenses";
 import { useIngredients } from "@/hooks/useIngredients";
 import { usePurchases } from "@/hooks/usePurchases";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +34,7 @@ const OwnerDashboard = () => {
 
   const { revenue, expenses, realCost, realProfit, realMargin, realCostMissing, expensesList, cashMovements, totalWithdrawals, loading, itemsMissingCost, hasPartialMissingCost } = useFinancialData(period, tierFilter, customRange);
   const { products, estimatedCost, loading: profitLoading } = useProductProfitability(period, tierFilter, customRange);
+  const { items: recurringItems } = useRecurringExpenses();
   const { ingredients, lowStock, update: updateIngredient } = useIngredients();
   const { purchases: allPurchases } = usePurchases();
 
@@ -133,7 +135,9 @@ const OwnerDashboard = () => {
 
   const estimatedProfit = revenue - estimatedCost - expenses;
   const margin = revenue > 0 ? ((revenue - estimatedCost) / revenue) * 100 : 0;
-  const available = Math.max(0, realProfit - totalWithdrawals);
+  const projectedRecurring = calcProjectedForPeriod(recurringItems, period, customRange);
+  const projectedResult = revenue - realCost - expenses - projectedRecurring;
+  const availableToWithdraw = revenue - realCost - expenses - projectedRecurring - totalWithdrawals;
 
   // Alerts
   const lowMarginProducts = products.filter(p => p.hasRecipe && p.margin !== null && p.margin < 20 && p.margin >= 0);
@@ -239,13 +243,16 @@ const OwnerDashboard = () => {
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <KpiCard label="Ingresos" value={fmt(revenue)} icon={<DollarSign className="w-4 h-4" />} color="text-green-600" />
-          <KpiCard label="Costos est." value={fmt(estimatedCost + expenses)} icon={<TrendingDown className="w-4 h-4" />} color="text-orange-500" tooltip="Proyección basada en costo actual de recetas" />
-          <KpiCard label="Ganancia est." value={fmt(estimatedProfit)} icon={<TrendingUp className="w-4 h-4" />} color={estimatedProfit >= 0 ? "text-green-600" : "text-destructive"} tooltip="Proyección basada en costo actual de recetas" />
-          <KpiCard label="Ganancia real" value={fmt(realProfit)} icon={<TrendingUp className="w-4 h-4" />} color={realProfit >= 0 ? "text-green-600" : "text-destructive"} tooltip="Basada en costo histórico real (FIFO) de cada pedido" />
-          <KpiCard label="Margen real" value={realMargin === null ? "—" : `${realMargin.toFixed(1)}%`} icon={<Percent className="w-4 h-4" />} color={realMargin === null ? "text-muted-foreground" : realMargin >= 30 ? "text-green-600" : realMargin >= 15 ? "text-yellow-600" : "text-destructive"} tooltip={realMargin === null ? "No se puede calcular — falta costo histórico" : "Basado en costo real FIFO de cada pedido"} />
-          <KpiCard label="Disponible" value={fmt(available)} icon={<Wallet className="w-4 h-4" />} color="text-green-600" />
+          <KpiCard label="Gastos reales" value={fmt(expenses)} icon={<TrendingDown className="w-4 h-4" />} color="text-orange-500" />
+          <KpiCard label="Gastos fijos proy." value={fmt(projectedRecurring)} icon={<TrendingDown className="w-4 h-4" />} color="text-orange-500" tooltip="Proyección de gastos fijos programados para este período" />
+          <KpiCard label="Ganancia real" value={fmt(realProfit)} icon={<TrendingUp className="w-4 h-4" />} color={realProfit >= 0 ? "text-green-600" : "text-destructive"} tooltip="Ingresos - costo real - gastos reales" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+          <KpiCard label="Margen real" value={realMargin === null ? "—" : `${realMargin.toFixed(1)}%`} icon={<Percent className="w-4 h-4" />} color={realMargin === null ? "text-muted-foreground" : realMargin >= 30 ? "text-green-600" : realMargin >= 15 ? "text-yellow-600" : "text-destructive"} tooltip={realMargin === null ? "No se puede calcular — falta costo histórico" : "Basado en costo real de cada pedido"} />
+          <KpiCard label="Resultado proy." value={fmt(projectedResult)} icon={<TrendingUp className="w-4 h-4" />} color={projectedResult >= 0 ? "text-green-600" : "text-destructive"} tooltip="Ingresos - costo real - gastos reales - gastos fijos proyectados" />
+          <KpiCard label="Disponible para retirar" value={fmt(availableToWithdraw)} icon={<Wallet className="w-4 h-4" />} color={availableToWithdraw >= 0 ? "text-green-600" : "text-destructive"} tooltip="Resultado proyectado - retiros personales" />
         </div>
 
         {/* Alerts */}
