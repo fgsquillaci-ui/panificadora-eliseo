@@ -136,6 +136,7 @@ const OwnerDashboard = () => {
   const estimatedProfit = revenue - estimatedCost - expenses;
   const margin = revenue > 0 ? ((revenue - estimatedCost) / revenue) * 100 : 0;
   const projectedRecurring = calcProjectedForPeriod(recurringItems, period, customRange);
+  const { fixed: projectedFixed, estimated: projectedEstimated } = calcProjectedBreakdown(recurringItems, period, customRange);
   const projectedResult = revenue - realCost - expenses - projectedRecurring;
   const availableToWithdraw = revenue - realCost - expenses - projectedRecurring - totalWithdrawals;
 
