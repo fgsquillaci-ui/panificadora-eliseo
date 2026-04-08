@@ -623,6 +623,7 @@ export type Database = {
           created_at: string | null
           day_of_month: number | null
           day_of_week: number | null
+          estimated: boolean | null
           frequency: string
           id: string
           name: string
@@ -635,6 +636,7 @@ export type Database = {
           created_at?: string | null
           day_of_month?: number | null
           day_of_week?: number | null
+          estimated?: boolean | null
           frequency?: string
           id?: string
           name: string
@@ -647,6 +649,7 @@ export type Database = {
           created_at?: string | null
           day_of_month?: number | null
           day_of_week?: number | null
+          estimated?: boolean | null
           frequency?: string
           id?: string
           name?: string
