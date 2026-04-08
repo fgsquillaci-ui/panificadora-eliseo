@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { format, startOfDay, startOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, getDay, getDate, parseISO } from "date-fns";
+import { format, startOfDay, startOfWeek, startOfMonth, endOfDay, endOfWeek, endOfMonth, eachDayOfInterval, getDay, getDate, parseISO } from "date-fns";
 import type { Period, CustomRange } from "./useFinancialData";
 
 export interface RecurringExpense {
@@ -49,15 +49,15 @@ function getPeriodRange(period: Period, customRange?: CustomRange): { from: Date
   }
   switch (period) {
     case "hoy":
-      return { from: startOfDay(now), to: now };
+      return { from: startOfDay(now), to: endOfDay(now) };
     case "semana":
-      return { from: startOfWeek(now, { weekStartsOn: 1 }), to: now };
+      return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfWeek(now, { weekStartsOn: 1 }) };
     case "mes":
-      return { from: startOfMonth(now), to: now };
+      return { from: startOfMonth(now), to: endOfMonth(now) };
     case "todo":
-      return { from: new Date("2020-01-01"), to: now };
+      return { from: new Date("2020-01-01"), to: endOfMonth(now) };
     default:
-      return { from: startOfDay(now), to: now };
+      return { from: startOfDay(now), to: endOfDay(now) };
   }
 }
 
