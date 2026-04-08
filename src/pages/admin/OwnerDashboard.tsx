@@ -135,7 +135,9 @@ const OwnerDashboard = () => {
 
   const estimatedProfit = revenue - estimatedCost - expenses;
   const margin = revenue > 0 ? ((revenue - estimatedCost) / revenue) * 100 : 0;
-  const available = Math.max(0, realProfit - totalWithdrawals);
+  const projectedRecurring = calcProjectedForPeriod(recurringItems, period, customRange);
+  const projectedResult = revenue - realCost - expenses - projectedRecurring;
+  const availableToWithdraw = revenue - realCost - expenses - projectedRecurring - totalWithdrawals;
 
   // Alerts
   const lowMarginProducts = products.filter(p => p.hasRecipe && p.margin !== null && p.margin < 20 && p.margin >= 0);
