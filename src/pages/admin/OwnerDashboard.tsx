@@ -250,10 +250,11 @@ const OwnerDashboard = () => {
           <KpiCard label="Gastos fijos proy." value={fmt(projectedRecurring)} icon={<TrendingDown className="w-4 h-4" />} color="text-orange-500" tooltip="Proyección de gastos fijos programados para este período" />
           <KpiCard label="Ganancia real" value={fmt(realProfit)} icon={<TrendingUp className="w-4 h-4" />} color={realProfit >= 0 ? "text-green-600" : "text-destructive"} tooltip="Ingresos - costo real - gastos reales" />
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <KpiCard label="Margen real" value={realMargin === null ? "—" : `${realMargin.toFixed(1)}%`} icon={<Percent className="w-4 h-4" />} color={realMargin === null ? "text-muted-foreground" : realMargin >= 30 ? "text-green-600" : realMargin >= 15 ? "text-yellow-600" : "text-destructive"} tooltip={realMargin === null ? "No se puede calcular — falta costo histórico" : "Basado en costo real de cada pedido"} />
+          <KpiCard label="Variables estimados" value={fmt(projectedEstimated)} icon={<TrendingDown className="w-4 h-4" />} color="text-orange-400" tooltip="Proyección de gastos variables con monto estimado" />
           <KpiCard label="Resultado proy." value={fmt(projectedResult)} icon={<TrendingUp className="w-4 h-4" />} color={projectedResult >= 0 ? "text-green-600" : "text-destructive"} tooltip="Ingresos - costo real - gastos reales - gastos fijos proyectados" />
-          <KpiCard label="Disponible para retirar" value={fmt(availableToWithdraw)} icon={<Wallet className="w-4 h-4" />} color={availableToWithdraw >= 0 ? "text-green-600" : "text-destructive"} tooltip="Resultado proyectado - retiros personales" />
+          <KpiCard label="Disponible para retirar" value={fmt(availableToWithdraw)} icon={<Wallet className="w-4 h-4" />} color={availableToWithdraw >= 0 ? "text-green-600" : "text-destructive"} tooltip="Incluye gastos fijos y variables estimados. No incluye variables sin estimación." />
         </div>
 
         {/* Alerts */}
