@@ -337,6 +337,7 @@ const RecurringExpenseForm = ({
   const [dayOfMonth, setDayOfMonth] = useState(initialData?.day_of_month?.toString() || "1");
   const [dayOfWeek, setDayOfWeek] = useState(initialData?.day_of_week?.toString() || "1");
   const [startDate, setStartDate] = useState(initialData?.start_date || new Date().toISOString().split("T")[0]);
+  const [estimated, setEstimated] = useState(initialData?.estimated ?? false);
   const [active, setActive] = useState(initialData?.active ?? true);
   const [submitting, setSubmitting] = useState(false);
 
