@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { format, startOfDay, startOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, getDay, getDate, parseISO } from "date-fns";
+import { format, startOfDay, startOfWeek, startOfMonth, endOfDay, endOfWeek, endOfMonth, eachDayOfInterval, getDay, getDate, parseISO } from "date-fns";
 import type { Period, CustomRange } from "./useFinancialData";
 
 export interface RecurringExpense {
