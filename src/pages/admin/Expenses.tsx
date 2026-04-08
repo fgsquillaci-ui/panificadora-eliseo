@@ -184,8 +184,14 @@ const ExpensesPage = () => {
                     {recurringItems.map(r => (
                       <tr key={r.id} className="border-b last:border-0 hover:bg-muted/50">
                         <td className="py-2 px-3 font-body">{r.name}</td>
-                        <td className="py-2 px-3 text-right font-medium">
-                          {r.amount !== null ? fmt(r.amount) : <Badge variant="outline" className="text-xs">Variable</Badge>}
+        <td className="py-2 px-3 text-right font-medium">
+                          {r.amount !== null && r.estimated === true ? (
+                            <span className="flex items-center justify-end gap-1.5">{fmt(r.amount)} <Badge variant="secondary" className="text-xs">Estimado</Badge></span>
+                          ) : r.amount !== null ? (
+                            fmt(r.amount)
+                          ) : (
+                            <Badge variant="outline" className="text-xs">Variable sin estimación</Badge>
+                          )}
                         </td>
                         <td className="py-2 px-3 font-body">{r.frequency === "monthly" ? "Mensual" : "Semanal"}</td>
                         <td className="py-2 px-3 font-body">
