@@ -414,7 +414,7 @@ const RecurringExpenseForm = ({
       </div>
       <div className="flex gap-2 justify-end pt-2">
         <Button variant="outline" onClick={onClose}>Cancelar</Button>
-        <Button onClick={handleSubmit} disabled={submitting || !name.trim()}>
+      <Button onClick={handleSubmit} disabled={submitting || !name.trim() || (estimated && !amount.trim())}>
           {initialData ? "Guardar" : "Crear"}
         </Button>
       </div>
