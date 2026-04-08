@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { useFinancialData, type Period, type CustomRange } from "@/hooks/useFinancialData";
 import { useProductProfitability, type TierFilter } from "@/hooks/useProductProfitability";
+import { useRecurringExpenses, calcProjectedForPeriod } from "@/hooks/useRecurringExpenses";
 import { useIngredients } from "@/hooks/useIngredients";
 import { usePurchases } from "@/hooks/usePurchases";
 import { supabase } from "@/integrations/supabase/client";

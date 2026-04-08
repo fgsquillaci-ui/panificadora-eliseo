@@ -115,7 +115,9 @@ export function useFinancialData(period: Period, tierFilter: TierFilter = null, 
 
   const totalCashIn = cashMovements.filter(m => m.type === "ingreso").reduce((s, m) => s + m.amount, 0);
   const totalCashOut = cashMovements.filter(m => m.type !== "ingreso").reduce((s, m) => s + m.amount, 0);
-  const totalWithdrawals = cashMovements.filter(m => m.type === "retiro").reduce((s, m) => s + m.amount, 0);
+  const totalWithdrawals = expensesList
+    .filter((e: any) => e.category === "gastos_personales")
+    .reduce((s: number, e: any) => s + (e.amount || 0), 0);
 
   const realProfit = revenue - realCost - expenses;
   const realMargin = revenue > 0
