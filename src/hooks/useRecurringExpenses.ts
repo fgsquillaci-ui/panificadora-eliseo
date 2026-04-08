@@ -49,15 +49,15 @@ function getPeriodRange(period: Period, customRange?: CustomRange): { from: Date
   }
   switch (period) {
     case "hoy":
-      return { from: startOfDay(now), to: now };
+      return { from: startOfDay(now), to: endOfDay(now) };
     case "semana":
-      return { from: startOfWeek(now, { weekStartsOn: 1 }), to: now };
+      return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfWeek(now, { weekStartsOn: 1 }) };
     case "mes":
-      return { from: startOfMonth(now), to: now };
+      return { from: startOfMonth(now), to: endOfMonth(now) };
     case "todo":
-      return { from: new Date("2020-01-01"), to: now };
+      return { from: new Date("2020-01-01"), to: endOfMonth(now) };
     default:
-      return { from: startOfDay(now), to: now };
+      return { from: startOfDay(now), to: endOfDay(now) };
   }
 }
 
