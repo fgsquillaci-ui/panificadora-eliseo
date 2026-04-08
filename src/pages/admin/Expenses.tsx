@@ -397,6 +397,16 @@ const RecurringExpenseForm = ({
         <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
       </div>
       <div className="flex items-center justify-between">
+        <Label className="text-xs font-semibold">Es gasto variable estimado</Label>
+        <Switch checked={estimated} onCheckedChange={v => {
+          setEstimated(v);
+          if (v && !amount.trim()) setAmount("");
+        }} />
+      </div>
+      {estimated && (
+        <p className="text-xs text-muted-foreground -mt-2">El monto es requerido para gastos estimados</p>
+      )}
+      <div className="flex items-center justify-between">
         <Label className="text-xs font-semibold">Activo</Label>
         <Switch checked={active} onCheckedChange={setActive} />
       </div>
