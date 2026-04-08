@@ -34,6 +34,7 @@ const OwnerDashboard = () => {
 
   const { revenue, expenses, realCost, realProfit, realMargin, realCostMissing, expensesList, cashMovements, totalWithdrawals, loading, itemsMissingCost, hasPartialMissingCost } = useFinancialData(period, tierFilter, customRange);
   const { products, estimatedCost, loading: profitLoading } = useProductProfitability(period, tierFilter, customRange);
+  const { items: recurringItems } = useRecurringExpenses();
   const { ingredients, lowStock, update: updateIngredient } = useIngredients();
   const { purchases: allPurchases } = usePurchases();
 
