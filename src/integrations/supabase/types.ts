@@ -616,6 +616,45 @@ export type Database = {
           },
         ]
       }
+      recurring_expenses: {
+        Row: {
+          active: boolean | null
+          amount: number | null
+          created_at: string | null
+          day_of_month: number | null
+          day_of_week: number | null
+          frequency: string
+          id: string
+          name: string
+          start_date: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean | null
+          amount?: number | null
+          created_at?: string | null
+          day_of_month?: number | null
+          day_of_week?: number | null
+          frequency?: string
+          id?: string
+          name: string
+          start_date?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean | null
+          amount?: number | null
+          created_at?: string | null
+          day_of_month?: number | null
+          day_of_week?: number | null
+          frequency?: string
+          id?: string
+          name?: string
+          start_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sales: {
         Row: {
           created_at: string
