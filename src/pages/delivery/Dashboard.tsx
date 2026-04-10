@@ -9,8 +9,8 @@ import { logError } from "@/lib/orderHistory";
 
 const DeliveryDashboard = () => {
   // Fetch ALL orders with status en_delivery directly — no deliveries table dependency
-  const { orders: pendingOrders, loading: loadingPending } = useRealtimeOrders({ statusFilter: "en_delivery" });
-  const { orders: completedOrders, loading: loadingCompleted } = useRealtimeOrders({ statusFilter: "entregado" });
+  const { orders: pendingOrders, loading: loadingPending } = useRealtimeOrders({ statusFilter: "en_delivery", deliveryTypeFilter: "delivery" });
+  const { orders: completedOrders, loading: loadingCompleted } = useRealtimeOrders({ statusFilter: "entregado", deliveryTypeFilter: "delivery" });
 
   const loading = loadingPending || loadingCompleted;
 

@@ -23,6 +23,7 @@ interface UseRealtimeOrdersOptions {
   userId?: string;
   statusFilter?: OrderStatus;
   limit?: number;
+  deliveryTypeFilter?: string;
 }
 
 export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}) {
