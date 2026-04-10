@@ -42,6 +42,9 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}) {
     if (options.statusFilter) {
       query = query.eq("status", options.statusFilter);
     }
+    if (options.deliveryTypeFilter) {
+      query = query.eq("delivery_type", options.deliveryTypeFilter);
+    }
     if (options.limit) {
       query = query.limit(options.limit);
     }
@@ -49,7 +52,7 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}) {
     const { data } = await query;
     setOrders((data as Order[]) || []);
     setLoading(false);
-  }, [options.userId, options.statusFilter, options.limit]);
+  }, [options.userId, options.statusFilter, options.limit, options.deliveryTypeFilter]);
 
   useEffect(() => {
     fetchOrders();
