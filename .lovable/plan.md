@@ -1,48 +1,28 @@
 
 
-## Agregar recetas para Pan de Lomo 18cm y 23cm (Mayorista)
+## Fix: Pan de Hamburguesa sin costo ni margen
 
-### Datos
+### Problema
 
-Interpolación proporcional desde las recetas existentes del 15cm y 30cm.
+El producto "Pan de Hamburguesa" tiene receta configurada (Harina, Sal, Huevo, Levadura) pero `unit_cost = 0` en la tabla de productos. Esto ocurrió porque la receta se creó antes de que existiera la sincronización automática. Como el backfill depende de que `unit_cost > 0`, tampoco puede corregir los pedidos históricos.
 
-**Pan de Lomo 18cm** (product_id: `b1b4e9d7-2a95-4a79-8068-a1c69d1a153d`):
-| Ingrediente | Cantidad | Unidad |
-|---|---|---|
-| Harina | 0.075 | kg |
-| Aceite | 4.5 | ml |
-| Sal | 0.0015 | kg |
-| Levadura | 0.0015 | kg |
+### Solución
 
-**Pan de Lomo 23cm** (product_id: `a6553ed4-81c3-4070-ac2e-76d5486eab87`):
-| Ingrediente | Cantidad | Unidad |
-|---|---|---|
-| Harina | 0.096 | kg |
-| Aceite | 5.75 | ml |
-| Sal | 0.0019 | kg |
-| Levadura | 0.0019 | kg |
+1. **Actualizar `products.unit_cost`** para Pan de Hamburguesa calculando desde la receta:
+   - Harina: 0.1 × 647.50 = $64.75
+   - Sal: 0.002 × 320.00 = $0.64
+   - Huevo: 0.1 × 233.33 = $23.33
+   - Levadura: 0.003 × 5300.00 = $15.90
+   - **Total: ~$105**
 
-### Changes
+2. **Ejecutar `backfill_cost_snapshots`** para actualizar el pedido existente con el costo correcto.
 
-**1. Database — Insert 8 recipe rows**
+### Cambios
 
-Insert recipe lines for both products using their ingredient IDs.
-
-**2. Database — Sync `products.unit_cost`**
-
-After inserting recipes, update `unit_cost` on both products by calculating `SUM(quantity * costo_unitario / 100)` from the recipe + ingredients.
-
-**3. Backfill cost snapshots**
-
-Call `backfill_cost_snapshots` for both product IDs to update any existing order items.
-
-### Files
-
-| Action | Target |
+| Acción | Detalle |
 |---|---|
-| DB Insert | `recipes` — 8 new rows |
-| DB Update | `products.unit_cost` — 2 rows |
-| DB RPC | `backfill_cost_snapshots` — 2 calls |
+| DB Update | `products.unit_cost = 105` donde id = Pan de Hamburguesa |
+| DB RPC | `backfill_cost_snapshots` para ese product_id |
 
-No code file changes needed.
+No se requieren cambios de código. Solo datos.
 
