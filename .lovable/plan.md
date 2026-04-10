@@ -1,28 +1,26 @@
 
 
-## Fix: Pan de Hamburguesa sin costo ni margen
+## Fix: Exclude pickup orders from delivery dashboard
 
-### Problema
+### Problem
+Delivery dashboard filters by status but not by `delivery_type`, so pickup orders appear for delivery users.
 
-El producto "Pan de Hamburguesa" tiene receta configurada (Harina, Sal, Huevo, Levadura) pero `unit_cost = 0` en la tabla de productos. Esto ocurrió porque la receta se creó antes de que existiera la sincronización automática. Como el backfill depende de que `unit_cost > 0`, tampoco puede corregir los pedidos históricos.
+### Changes
 
-### Solución
+**1. `src/hooks/useRealtimeOrders.ts`** — Add `deliveryTypeFilter` option
 
-1. **Actualizar `products.unit_cost`** para Pan de Hamburguesa calculando desde la receta:
-   - Harina: 0.1 × 647.50 = $64.75
-   - Sal: 0.002 × 320.00 = $0.64
-   - Huevo: 0.1 × 233.33 = $23.33
-   - Levadura: 0.003 × 5300.00 = $15.90
-   - **Total: ~$105**
+- Add `deliveryTypeFilter?: string` to `UseRealtimeOrdersOptions`
+- In `fetchOrders`: add `.eq("delivery_type", value)` when set
+- In realtime INSERT handler: skip if `deliveryTypeFilter` is set and `payload.new.delivery_type` doesn't match
+- In realtime UPDATE handler: same filter logic
+- Add to channel name and effect dependency array
 
-2. **Ejecutar `backfill_cost_snapshots`** para actualizar el pedido existente con el costo correcto.
+**2. `src/pages/delivery/Dashboard.tsx`** — Pass filter
 
-### Cambios
+- Both `useRealtimeOrders` calls add `deliveryTypeFilter: "delivery"`
 
-| Acción | Detalle |
-|---|---|
-| DB Update | `products.unit_cost = 105` donde id = Pan de Hamburguesa |
-| DB RPC | `backfill_cost_snapshots` para ese product_id |
-
-No se requieren cambios de código. Solo datos.
+### Scope
+- Admin/owner views unaffected (they don't pass this filter)
+- Null or non-matching `delivery_type` orders excluded from delivery dashboard (safe fallback)
+- No database changes needed
 
