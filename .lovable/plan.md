@@ -1,85 +1,48 @@
 
 
-## Fix: Recipe costs not reflected in financial page
+## Agregar recetas para Pan de Lomo 18cm y 23cm (Mayorista)
 
-### Root cause
+### Datos
 
-When a recipe is created/updated for a product, `products.unit_cost` is correctly synced. However, **existing delivered orders** still have `cost_snapshot = NULL` in `order_items` because cost was only calculated at order creation time (before the recipe existed). The financial dashboard only reads `cost_snapshot` for cost calculations, so it shows $0 cost for those items.
+Interpolación proporcional desde las recetas existentes del 15cm y 30cm.
 
-### Solution: Two-part fix
+**Pan de Lomo 18cm** (product_id: `b1b4e9d7-2a95-4a79-8068-a1c69d1a153d`):
+| Ingrediente | Cantidad | Unidad |
+|---|---|---|
+| Harina | 0.075 | kg |
+| Aceite | 4.5 | ml |
+| Sal | 0.0015 | kg |
+| Levadura | 0.0015 | kg |
 
-**1. Backfill `cost_snapshot` when a recipe is saved**
+**Pan de Lomo 23cm** (product_id: `a6553ed4-81c3-4070-ac2e-76d5486eab87`):
+| Ingrediente | Cantidad | Unidad |
+|---|---|---|
+| Harina | 0.096 | kg |
+| Aceite | 5.75 | ml |
+| Sal | 0.0019 | kg |
+| Levadura | 0.0019 | kg |
 
-In `src/hooks/useRecipes.ts`, after `syncProductUnitCost` runs, call a new function `backfillMissingCostSnapshots` that:
-- Finds all `order_items` where `product_id` matches and `cost_snapshot IS NULL`
-- Calculates cost from the current recipe (same formula as `create-order`)
-- Updates those rows with the computed cost and margin
+### Changes
 
-This requires a new edge function (since `order_items` has no UPDATE RLS for regular users) or a database function with SECURITY DEFINER.
+**1. Database — Insert 8 recipe rows**
 
-**2. Add a database function `backfill_cost_snapshots`**
+Insert recipe lines for both products using their ingredient IDs.
 
-Create a SECURITY DEFINER function that:
-- Takes a `product_id` parameter
-- Reads the current recipe cost for that product
-- Updates all `order_items` with `cost_snapshot IS NULL` for that product
-- Calculates and sets `margin_snapshot` as well
+**2. Database — Sync `products.unit_cost`**
 
-### Technical details
+After inserting recipes, update `unit_cost` on both products by calculating `SUM(quantity * costo_unitario / 100)` from the recipe + ingredients.
 
-**Database migration** — New function:
-```sql
-CREATE OR REPLACE FUNCTION public.backfill_cost_snapshots(_product_id uuid)
-RETURNS integer
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-DECLARE
-  _unit_cost numeric;
-  _updated integer;
-BEGIN
-  -- Get current unit_cost from products (already synced by recipe save)
-  SELECT unit_cost INTO _unit_cost FROM products WHERE id = _product_id;
-  
-  IF _unit_cost IS NULL OR _unit_cost = 0 THEN
-    RETURN 0;
-  END IF;
+**3. Backfill cost snapshots**
 
-  -- Update order_items missing cost_snapshot
-  UPDATE order_items oi
-  SET 
-    cost_snapshot = _unit_cost * oi.quantity,
-    margin_snapshot = CASE 
-      WHEN oi.total > 0 THEN ROUND(((oi.total - (_unit_cost * oi.quantity))::numeric / oi.total) * 10000) / 100
-      ELSE 0 
-    END
-  WHERE oi.product_id = _product_id
-    AND oi.cost_snapshot IS NULL;
-
-  GET DIAGNOSTICS _updated = ROW_COUNT;
-  RETURN _updated;
-END;
-$$;
-```
-
-**`src/hooks/useRecipes.ts`** — After `syncProductUnitCost`, call the backfill:
-```typescript
-// After syncProductUnitCost(productId):
-await supabase.rpc('backfill_cost_snapshots', { _product_id: productId });
-```
-
-Add this call in `addLine`, `updateLine`, and `removeLine` functions.
+Call `backfill_cost_snapshots` for both product IDs to update any existing order items.
 
 ### Files
 
 | Action | Target |
 |---|---|
-| DB Migration | New function `backfill_cost_snapshots` |
-| Edit | `src/hooks/useRecipes.ts` — call backfill after recipe sync (3 lines added) |
+| DB Insert | `recipes` — 8 new rows |
+| DB Update | `products.unit_cost` — 2 rows |
+| DB RPC | `backfill_cost_snapshots` — 2 calls |
 
-### What does NOT change
-- `create-order` edge function (already calculates cost correctly for new orders)
-- `useFinancialData` / `useProductProfitability` (they already read `cost_snapshot` correctly)
-- No impact on orders that already have `cost_snapshot` set
+No code file changes needed.
 
