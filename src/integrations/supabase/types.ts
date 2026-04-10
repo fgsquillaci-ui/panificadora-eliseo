@@ -732,6 +732,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      backfill_cost_snapshots: {
+        Args: { _product_id: string }
+        Returns: number
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
