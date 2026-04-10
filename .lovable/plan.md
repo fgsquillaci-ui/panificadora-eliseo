@@ -1,44 +1,85 @@
 
 
-## Add Wholesale Products — Pan de Lomo 18cm y 23cm (Production Ready)
+## Fix: Recipe costs not reflected in financial page
 
-### Changes
+### Root cause
 
-**1. Database — Insert 2 new products**
+When a recipe is created/updated for a product, `products.unit_cost` is correctly synced. However, **existing delivered orders** still have `cost_snapshot = NULL` in `order_items` because cost was only calculated at order creation time (before the recipe existed). The financial dashboard only reads `cost_snapshot` for cost calculations, so it shows $0 cost for those items.
 
+### Solution: Two-part fix
+
+**1. Backfill `cost_snapshot` when a recipe is saved**
+
+In `src/hooks/useRecipes.ts`, after `syncProductUnitCost` runs, call a new function `backfillMissingCostSnapshots` that:
+- Finds all `order_items` where `product_id` matches and `cost_snapshot IS NULL`
+- Calculates cost from the current recipe (same formula as `create-order`)
+- Updates those rows with the computed cost and margin
+
+This requires a new edge function (since `order_items` has no UPDATE RLS for regular users) or a database function with SECURITY DEFINER.
+
+**2. Add a database function `backfill_cost_snapshots`**
+
+Create a SECURITY DEFINER function that:
+- Takes a `product_id` parameter
+- Reads the current recipe cost for that product
+- Updates all `order_items` with `cost_snapshot IS NULL` for that product
+- Calculates and sets `margin_snapshot` as well
+
+### Technical details
+
+**Database migration** — New function:
 ```sql
-INSERT INTO public.products (name, category, emoji, retail_price, wholesale_price, description)
-VALUES
-  ('Pan de Lomo 18cm (Mayorista)', 'panes', '🥖', NULL, 420, 'Pan de lomo 18cm — producción especial mayorista'),
-  ('Pan de Lomo 23cm (Mayorista)', 'panes', '🥖', NULL, 450, 'Pan de lomo 23cm — producción especial mayorista');
+CREATE OR REPLACE FUNCTION public.backfill_cost_snapshots(_product_id uuid)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  _unit_cost numeric;
+  _updated integer;
+BEGIN
+  -- Get current unit_cost from products (already synced by recipe save)
+  SELECT unit_cost INTO _unit_cost FROM products WHERE id = _product_id;
+  
+  IF _unit_cost IS NULL OR _unit_cost = 0 THEN
+    RETURN 0;
+  END IF;
+
+  -- Update order_items missing cost_snapshot
+  UPDATE order_items oi
+  SET 
+    cost_snapshot = _unit_cost * oi.quantity,
+    margin_snapshot = CASE 
+      WHEN oi.total > 0 THEN ROUND(((oi.total - (_unit_cost * oi.quantity))::numeric / oi.total) * 10000) / 100
+      ELSE 0 
+    END
+  WHERE oi.product_id = _product_id
+    AND oi.cost_snapshot IS NULL;
+
+  GET DIAGNOSTICS _updated = ROW_COUNT;
+  RETURN _updated;
+END;
+$$;
 ```
 
-**2. `src/hooks/useProducts.ts` — Support wholesale-only products**
+**`src/hooks/useRecipes.ts`** — After `syncProductUnitCost`, call the backfill:
+```typescript
+// After syncProductUnitCost(productId):
+await supabase.rpc('backfill_cost_snapshots', { _product_id: productId });
+```
 
-Two changes on the existing mapping (line 19 and line 23):
-
-- **Filter**: include products with either retail or wholesale price
-  ```typescript
-  // Before: data.filter(p => p.retail_price != null)
-  // After:  data.filter(p => p.retail_price != null || p.wholesale_price != null)
-  ```
-
-- **Price fallback**: use wholesale price when retail is null
-  ```typescript
-  // Before: price: p.retail_price ?? 0,
-  // After:  price: p.retail_price ?? p.wholesale_price ?? 0,
-  ```
-
-### What does NOT change
-
-- `getUnitPrice` / `getPricingTier` in `src/lib/pricing.ts` — already handles `wholesalePrice` fallback correctly
-- `CreateOrderForm` — already uses `getUnitPrice` which returns `wholesalePrice` when tier is "mayorista"
-- Product interface, orders, costs, margins, edge functions
+Add this call in `addLine`, `updateLine`, and `removeLine` functions.
 
 ### Files
 
 | Action | Target |
 |---|---|
-| DB Insert | `public.products` — 2 new rows |
-| Edit | `src/hooks/useProducts.ts` — filter + price fallback (2 lines) |
+| DB Migration | New function `backfill_cost_snapshots` |
+| Edit | `src/hooks/useRecipes.ts` — call backfill after recipe sync (3 lines added) |
+
+### What does NOT change
+- `create-order` edge function (already calculates cost correctly for new orders)
+- `useFinancialData` / `useProductProfitability` (they already read `cost_snapshot` correctly)
+- No impact on orders that already have `cost_snapshot` set
 
