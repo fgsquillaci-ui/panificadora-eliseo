@@ -16,11 +16,11 @@ export function useProducts() {
         return fallbackProducts.filter(p => p.price > 0);
       }
 
-      return data.filter(p => p.retail_price != null).map((p) => ({
+      return data.filter(p => p.retail_price != null || p.wholesale_price != null).map((p) => ({
         id: p.id,
         name: p.name,
         description: p.description || "",
-        price: p.retail_price ?? 0,
+        price: p.retail_price ?? p.wholesale_price ?? 0,
         wholesalePrice: p.wholesale_price ?? undefined,
         intermediatePrice: (p as any).intermediate_price ?? undefined,
         minQtyMidTier: (p as any).min_qty_mid_tier ?? undefined,
