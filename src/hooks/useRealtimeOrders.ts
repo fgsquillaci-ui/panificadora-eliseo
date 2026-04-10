@@ -23,6 +23,7 @@ interface UseRealtimeOrdersOptions {
   userId?: string;
   statusFilter?: OrderStatus;
   limit?: number;
+  deliveryTypeFilter?: string;
 }
 
 export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}) {
@@ -41,6 +42,9 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}) {
     if (options.statusFilter) {
       query = query.eq("status", options.statusFilter);
     }
+    if (options.deliveryTypeFilter) {
+      query = query.eq("delivery_type", options.deliveryTypeFilter);
+    }
     if (options.limit) {
       query = query.limit(options.limit);
     }
@@ -48,14 +52,14 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}) {
     const { data } = await query;
     setOrders((data as Order[]) || []);
     setLoading(false);
-  }, [options.userId, options.statusFilter, options.limit]);
+  }, [options.userId, options.statusFilter, options.limit, options.deliveryTypeFilter]);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
 
   useEffect(() => {
-    const channelName = `orders-rt-${options.userId ?? "all"}-${options.statusFilter ?? "all"}-${options.limit ?? "none"}`;
+    const channelName = `orders-rt-${options.userId ?? "all"}-${options.statusFilter ?? "all"}-${options.limit ?? "none"}-${options.deliveryTypeFilter ?? "any"}`;
     const channel = supabase
       .channel(channelName)
       .on(
@@ -63,9 +67,9 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}) {
         { event: "INSERT", schema: "public", table: "orders" },
         (payload) => {
           const newOrder = payload.new as Order;
-          // Apply client-side filters
           if (options.userId && newOrder.user_id !== options.userId) return;
           if (options.statusFilter && newOrder.status !== options.statusFilter) return;
+          if (options.deliveryTypeFilter && newOrder.delivery_type !== options.deliveryTypeFilter) return;
           setOrders((prev) => [newOrder, ...prev]);
         }
       )
@@ -75,15 +79,15 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}) {
         (payload) => {
           const updated = payload.new as Order;
           setOrders((prev) => {
-            // If filtering by userId and doesn't match, remove it
             if (options.userId && updated.user_id !== options.userId) {
               return prev.filter((o) => o.id !== updated.id);
             }
-            // If filtering by status and doesn't match, remove it
             if (options.statusFilter && updated.status !== options.statusFilter) {
               return prev.filter((o) => o.id !== updated.id);
             }
-            // Update existing or add if new
+            if (options.deliveryTypeFilter && updated.delivery_type !== options.deliveryTypeFilter) {
+              return prev.filter((o) => o.id !== updated.id);
+            }
             const exists = prev.find((o) => o.id === updated.id);
             if (exists) {
               return prev.map((o) => (o.id === updated.id ? updated : o));
@@ -97,7 +101,7 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [options.userId, options.statusFilter]);
+  }, [options.userId, options.statusFilter, options.deliveryTypeFilter]);
 
   return { orders, loading, refetch: fetchOrders };
 }
