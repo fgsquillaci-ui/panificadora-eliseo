@@ -67,6 +67,7 @@ export function useRecipes(productId?: string) {
     if (error) { toast.error("Error al agregar ingrediente a receta"); return false; }
     await fetch();
     await syncProductUnitCost(productId);
+    await supabase.rpc('backfill_cost_snapshots', { _product_id: productId });
     return true;
   };
 
@@ -74,7 +75,10 @@ export function useRecipes(productId?: string) {
     const { error } = await supabase.from("recipes").update({ quantity }).eq("id", id);
     if (error) { toast.error("Error al actualizar"); return false; }
     await fetch();
-    if (productId) await syncProductUnitCost(productId);
+    if (productId) {
+      await syncProductUnitCost(productId);
+      await supabase.rpc('backfill_cost_snapshots', { _product_id: productId });
+    }
     return true;
   };
 
@@ -82,7 +86,10 @@ export function useRecipes(productId?: string) {
     const { error } = await supabase.from("recipes").delete().eq("id", id);
     if (error) { toast.error("Error al eliminar"); return false; }
     await fetch();
-    if (productId) await syncProductUnitCost(productId);
+    if (productId) {
+      await syncProductUnitCost(productId);
+      await supabase.rpc('backfill_cost_snapshots', { _product_id: productId });
+    }
     return true;
   };
 
