@@ -1,60 +1,44 @@
 
 
-## Variable Expenses Estimation — Con correcciones de seguridad
+## Add Wholesale Products — Pan de Lomo 18cm y 23cm (Production Ready)
 
-### Cambios
+### Changes
 
-**1. Migración — Agregar columna `estimated` + constraint**
+**1. Database — Insert 2 new products**
 
 ```sql
-ALTER TABLE public.recurring_expenses
-ADD COLUMN IF NOT EXISTS estimated boolean DEFAULT false;
-
-ALTER TABLE public.recurring_expenses
-ADD CONSTRAINT valid_estimated_amount
-CHECK (NOT (estimated = true AND amount IS NULL));
+INSERT INTO public.products (name, category, emoji, retail_price, wholesale_price, description)
+VALUES
+  ('Pan de Lomo 18cm (Mayorista)', 'panes', '🥖', NULL, 420, 'Pan de lomo 18cm — producción especial mayorista'),
+  ('Pan de Lomo 23cm (Mayorista)', 'panes', '🥖', NULL, 450, 'Pan de lomo 23cm — producción especial mayorista');
 ```
 
-**2. `src/hooks/useRecurringExpenses.ts`**
+**2. `src/hooks/useProducts.ts` — Support wholesale-only products**
 
-- Agregar `estimated: boolean` a `RecurringExpense` interface y `RecurringExpenseInput`
-- Validación en `validateInput`: si `estimated === true`, amount es requerido
-- Incluir `estimated` en create/update
-- Clasificación explícita (sin truthy/falsy):
-  - `fixedItems` → `amount != null && item.estimated !== true`
-  - `estimatedItems` → `amount != null && item.estimated === true`
-  - `variableItems` → `amount == null`
-- Nueva función `calcProjectedBreakdown(items, period, customRange)` → `{ fixed, estimated, total }` donde `total = fixed + estimated`
-- `calcProjectedForPeriod` sigue igual (ya suma todo item con amount != null)
+Two changes on the existing mapping (line 19 and line 23):
 
-**3. `src/pages/admin/Expenses.tsx`**
+- **Filter**: include products with either retail or wholesale price
+  ```typescript
+  // Before: data.filter(p => p.retail_price != null)
+  // After:  data.filter(p => p.retail_price != null || p.wholesale_price != null)
+  ```
 
-- Form: agregar switch "Es gasto variable estimado" — si activado, amount requerido
-- Tabla de gastos programados, columna Monto:
-  - `amount != null && estimated !== true` → monto normal
-  - `amount != null && estimated === true` → monto + Badge "Estimado" (secondary)
-  - `amount == null` → Badge "Variable sin estimación" (outline)
+- **Price fallback**: use wholesale price when retail is null
+  ```typescript
+  // Before: price: p.retail_price ?? 0,
+  // After:  price: p.retail_price ?? p.wholesale_price ?? 0,
+  ```
 
-**4. `src/pages/admin/OwnerDashboard.tsx`**
+### What does NOT change
 
-- Importar `calcProjectedBreakdown` del hook
-- Calcular `{ fixed, estimated }` del breakdown
-- Agregar KPI secundario "Variables estimados" con valor `estimated`
-- Tooltip en "Disponible para retirar": "Incluye gastos fijos y variables estimados. No incluye variables sin estimación."
-- Fórmula de `availableToWithdraw` NO cambia
+- `getUnitPrice` / `getPricingTier` in `src/lib/pricing.ts` — already handles `wholesalePrice` fallback correctly
+- `CreateOrderForm` — already uses `getUnitPrice` which returns `wholesalePrice` when tier is "mayorista"
+- Product interface, orders, costs, margins, edge functions
 
-### Lo que NO cambia
+### Files
 
-- `calcProjectedForPeriod` (ya incluye estimated automáticamente)
-- Fórmula de `availableToWithdraw`
-- Orders, costos, márgenes, edge functions
-
-### Archivos
-
-| Acción | Archivo |
+| Action | Target |
 |---|---|
-| Migración | Agregar `estimated` boolean + constraint |
-| Editar | `src/hooks/useRecurringExpenses.ts` — interface, validación, breakdown |
-| Editar | `src/pages/admin/Expenses.tsx` — form toggle, badges |
-| Editar | `src/pages/admin/OwnerDashboard.tsx` — KPI + tooltip |
+| DB Insert | `public.products` — 2 new rows |
+| Edit | `src/hooks/useProducts.ts` — filter + price fallback (2 lines) |
 
