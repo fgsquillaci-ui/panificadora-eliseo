@@ -161,7 +161,7 @@ const OwnerDashboard = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-heading font-bold text-foreground">Panel Financiero</h1>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
             {/* Tier filter */}
             <Select value={tierFilter ?? "todos"} onValueChange={v => setTierFilter(v === "todos" ? null : v as TierFilter)}>
               <SelectTrigger className="w-[140px] h-8 text-xs">
@@ -175,10 +175,10 @@ const OwnerDashboard = () => {
               </SelectContent>
             </Select>
             {/* Period selector */}
-            <div className="flex items-center gap-1 bg-secondary rounded-lg p-1">
+            <div className="flex items-center gap-1 bg-secondary rounded-lg p-1 overflow-x-auto">
               {(["hoy", "semana", "mes", "todo"] as Period[]).map(p => (
                 <button key={p} onClick={() => handleQuickPeriod(p)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-body font-medium transition-colors ${period === p ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                  className={`px-3 py-1.5 rounded-md text-xs font-body font-medium transition-colors whitespace-nowrap ${period === p ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}>
                   {p.charAt(0).toUpperCase() + p.slice(1)}
                 </button>
               ))}
@@ -313,7 +313,7 @@ const OwnerDashboard = () => {
               <p className="text-sm text-muted-foreground">Sin ventas en este periodo</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm min-w-[500px]">
                   <thead><tr className="border-b text-left text-muted-foreground">
                     <th className="py-2 font-medium">Producto</th>
                     <th className="py-2 font-medium text-right">Uds</th>
@@ -359,7 +359,7 @@ const OwnerDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm min-w-[600px]">
                   <thead><tr className="border-b text-left text-muted-foreground">
                     <th className="py-2 font-medium">Producto</th>
                     <th className="py-2 font-medium text-right">Costo</th>
@@ -416,7 +416,7 @@ const OwnerDashboard = () => {
 
 const KpiCard = ({ label, value, icon, color, tooltip }: { label: string; value: string; icon: React.ReactNode; color: string; tooltip?: string }) => (
   <Card>
-    <CardContent className="p-4">
+    <CardContent className="p-3 md:p-4">
       <div className="flex items-center gap-2 text-muted-foreground mb-1">
         {icon}
         <span className="text-xs font-body">{label}</span>
@@ -426,7 +426,7 @@ const KpiCard = ({ label, value, icon, color, tooltip }: { label: string; value:
           </TooltipTrigger><TooltipContent><p className="text-xs max-w-48">{tooltip}</p></TooltipContent></Tooltip></TooltipProvider>
         )}
       </div>
-      <p className={`text-xl font-heading font-bold ${color}`}>{value}</p>
+      <p className={`text-lg md:text-xl font-heading font-bold ${color}`}>{value}</p>
     </CardContent>
   </Card>
 );
@@ -477,7 +477,7 @@ const CostAnalysisSection = ({ ingredients, purchases, onUpdateCost }: {
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[500px]">
             <thead><tr className="border-b text-left text-muted-foreground">
               <th className="py-2 font-medium">Materia prima</th>
               <th className="py-2 font-medium text-right">Costo actual</th>

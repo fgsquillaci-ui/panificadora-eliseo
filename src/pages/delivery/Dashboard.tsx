@@ -42,11 +42,11 @@ const DeliveryDashboard = () => {
           <p className="text-muted-foreground font-body animate-pulse">Cargando...</p>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {cards.map((card) => (
-                <div key={card.label} className="bg-card rounded-xl border p-5 space-y-2">
+                <div key={card.label} className="bg-card rounded-xl border p-3 sm:p-5 space-y-2">
                   <div className={card.color}>{card.icon}</div>
-                  <p className="font-display text-2xl font-bold">{card.value}</p>
+                  <p className="font-display text-xl sm:text-2xl font-bold">{card.value}</p>
                   <p className="font-body text-xs text-muted-foreground">{card.label}</p>
                 </div>
               ))}

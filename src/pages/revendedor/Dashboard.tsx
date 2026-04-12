@@ -40,9 +40,9 @@ const RevendedorDashboard = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <h1 className="font-display text-2xl font-bold">Mis pedidos</h1>
-          <Button onClick={() => setShowCreate(true)} className="gap-1.5 font-body text-sm">
+          <Button onClick={() => setShowCreate(true)} className="gap-1.5 font-body text-sm w-full sm:w-auto">
             <Plus className="w-4 h-4" /> Nuevo pedido
           </Button>
         </div>
@@ -53,9 +53,9 @@ const RevendedorDashboard = () => {
           <>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {cards.map((card) => (
-                <div key={card.label} className="bg-card rounded-xl border p-5 space-y-2">
+                <div key={card.label} className="bg-card rounded-xl border p-3 md:p-5 space-y-2">
                   <div className={card.color}>{card.icon}</div>
-                  <p className="font-display text-2xl font-bold">{card.value}</p>
+                  <p className="font-display text-xl md:text-2xl font-bold">{card.value}</p>
                   <p className="font-body text-xs text-muted-foreground">{card.label}</p>
                 </div>
               ))}

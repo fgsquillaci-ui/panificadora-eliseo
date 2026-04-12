@@ -95,7 +95,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
         </header>
 
         {/* Mobile nav */}
-        <nav className="md:hidden flex border-b bg-card overflow-x-auto">
+        <nav className="md:hidden flex border-b bg-card overflow-x-auto px-2">
           {navItems.map((item) => (
             <Link
               key={item.path}
@@ -112,7 +112,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
           ))}
         </nav>
 
-        <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+        <main className="flex-1 p-3 md:p-8 overflow-y-auto">
           {children}
         </main>
       </div>
