@@ -108,7 +108,7 @@ const ExpensesPage = () => {
               <p className="p-6 text-sm text-muted-foreground">Sin gastos registrados</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm min-w-[600px]">
                   <thead>
                     <tr className="border-b text-left text-muted-foreground">
                       <th className="py-3 px-4 font-medium">Fecha</th>
@@ -169,7 +169,7 @@ const ExpensesPage = () => {
               <p className="text-sm text-muted-foreground">Sin gastos programados. Agregá gastos fijos como alquiler, servicios, etc.</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm min-w-[500px]">
                   <thead>
                     <tr className="border-b text-left text-muted-foreground">
                       <th className="py-2 px-3 font-medium">Nombre</th>

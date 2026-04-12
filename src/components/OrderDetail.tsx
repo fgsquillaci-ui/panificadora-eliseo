@@ -121,8 +121,8 @@ const OrderDetail = ({
             ) : items.length === 0 ? (
               <p className="font-body text-xs text-muted-foreground">Sin productos registrados.</p>
             ) : (
-              <div className="rounded-lg border overflow-hidden">
-                <table className="w-full text-xs font-body">
+              <div className="rounded-lg border overflow-x-auto">
+                <table className="w-full text-xs font-body min-w-[400px]">
                   <thead>
                     <tr className="bg-secondary/50">
                       <th className="text-left px-3 py-2 font-medium text-muted-foreground">Producto</th>
@@ -151,7 +151,7 @@ const OrderDetail = ({
               </div>
             )}
 
-            {actions && <div className="flex justify-end pt-1">{actions}</div>}
+            {actions && <div className="flex justify-start sm:justify-end pt-1">{actions}</div>}
           </div>
         </CollapsibleContent>
       </div>
