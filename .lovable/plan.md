@@ -1,59 +1,38 @@
 
 
-## Ajuste responsive mobile para todos los dashboards
+## Fix: Unify purchase history using `ingredient_batches`
 
-### Problema
-En viewport mobile (390px), varios elementos se desbordan o quedan incómodos: controles de período/filtro apilados horizontalmente, tablas con muchas columnas, paddings excesivos, y botones de acción que no caben.
+### Current State
+- The `purchases` table is **empty** — no historical migration needed
+- All purchase data (including from expenses) already lives in `ingredient_batches`
+- But `usePurchases.ts` still reads from `purchases`, so "Historial de compras" shows empty and "Costo promedio" shows "Sin compras"
 
-### Cambios
+### Changes
 
-**1. `src/components/DashboardLayout.tsx`**
-- Reducir padding del `main` en mobile: `p-3 md:p-8`
-- Mobile nav: agregar `px-2` para que los tabs no queden pegados al borde
+**1. `src/hooks/usePurchases.ts`** — Switch to `ingredient_batches`
 
-**2. `src/pages/admin/Dashboard.tsx`**
-- Título + botón "Crear pedido": stack vertical en mobile (`flex-col sm:flex-row`)
-- Botón "Crear pedido" full-width en mobile
-- Cards: reducir padding en mobile (`p-3 md:p-5`)
-- Textos grandes en cards: `text-xl md:text-2xl`
+- **fetchPurchases**: Query `ingredient_batches` instead of `purchases`, mapping fields:
+  - `quantity_total` → `quantity`
+  - `unit_cost` → `unit_price` (already in pesos)
+  - `purchase_date` → `date`
+  - `quantity_total * unit_cost` → `total_cost`
+- **Realtime**: Listen on `ingredient_batches` table instead of `purchases`
+- **create**: Stop writing to `purchases` table entirely. Only write to `ingredient_batches` (already does this). Keep `cascadeResync` and cost history logging.
+- **remove**: Delete from `ingredient_batches` instead of `purchases`, then call `cascadeResync` to update stock/cost
+- **weightedAvgCost**: Calculate from batch data (values already in pesos, no `/100` needed)
 
-**3. `src/pages/admin/OwnerDashboard.tsx`** (el más complejo)
-- Header: stack vertical completo en mobile
-- Controles de período y tier: stack vertical, cada uno full-width en mobile
-- Period buttons: hacer scroll horizontal en mobile en vez de wrap
-- KPI cards: `p-3` en mobile, texto `text-lg md:text-xl`
-- Alertas: texto más pequeño en mobile
-- Tablas de rentabilidad/precios: ya tienen `overflow-x-auto`, asegurar `min-w` en las tablas para scroll limpio
+**2. `src/pages/admin/Ingredients.tsx`** — Fix display formatting
 
-**4. `src/pages/admin/Orders.tsx`**
-- Cada order card: stack vertical completo en mobile (ya tiene `flex-col sm:flex-row`)
-- Botones de acción: full-width en mobile
+- Purchase history display: remove `/100` division since `unit_cost` from batches is already in pesos
+- Show `supplier` from batch data
+- `total_cost` display: also already in pesos, remove `/100`
 
-**5. `src/pages/admin/Expenses.tsx`**
-- Métricas: `grid-cols-1 sm:grid-cols-3` (ya está bien)
-- Tabla de gastos: agregar `min-w-[600px]` para scroll horizontal limpio
-- Tabla de gastos programados: `min-w-[500px]`
+### No database changes needed
+- `purchases` table is already empty — no migration required
+- `ingredient_batches` is already the single source of truth
 
-**6. `src/pages/admin/Customers.tsx`, `Users.tsx`, `Ingredients.tsx`, `Recipes.tsx`**
-- Revisar que tablas tengan `overflow-x-auto` con `min-w` adecuado
-- Headers con botones: stack vertical en mobile
-
-**7. `src/pages/revendedor/Dashboard.tsx`**
-- Mismo patrón: título + botón stack vertical en mobile
-- Cards padding reducido
-
-**8. `src/pages/delivery/Dashboard.tsx`**
-- Cards `grid-cols-3`: reducir a `grid-cols-1 sm:grid-cols-3` para mobile
-- Padding reducido en cards
-
-**9. `src/components/OrderDetail.tsx`**
-- Tabla interna de productos: agregar `min-w-[400px]` para scroll limpio
-- Actions wrapper: `justify-end` a `justify-start` en mobile para mejor accesibilidad
-
-**10. `src/components/CreateOrderForm.tsx`**
-- Grid de productos: `grid-cols-2` ya está bien
-- Asegurar que el dialog con `max-h-[70vh]` funcione bien en mobile
-
-### Alcance
-Solo cambios de CSS/Tailwind classes. No hay cambios de lógica ni de base de datos.
+### Impact
+- "Historial de compras" will show all entries (from both direct purchases and expenses)
+- "Costo promedio (compras)" will calculate correctly
+- No data loss — `purchases` table left as-is (deprecated)
 
