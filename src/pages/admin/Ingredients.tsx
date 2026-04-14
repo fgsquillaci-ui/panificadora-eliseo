@@ -84,7 +84,7 @@ const Ingredients = () => {
             </CardContent></Card>
             <Card><CardContent className="p-4">
               <p className="text-xs text-muted-foreground mb-1">Costo promedio (compras)</p>
-              <p className="text-xl font-heading font-bold text-foreground">{weightedAvgCost > 0 ? `${fmt(weightedAvgCost / 100)} / ${selectedIngredient.unit}` : "Sin compras"}</p>
+              <p className="text-xl font-heading font-bold text-foreground">{weightedAvgCost > 0 ? `${fmt(weightedAvgCost)} / ${selectedIngredient.unit}` : "Sin compras"}</p>
             </CardContent></Card>
             {weightedAvgCost > 0 && (
               <Card><CardContent className="p-4">
@@ -157,11 +157,12 @@ const Ingredients = () => {
                   {purchases.map(p => (
                     <div key={p.id} className="flex justify-between items-center text-sm border-b pb-2">
                       <div>
-                        <span className="font-body">{p.quantity} {selectedIngredient.unit} × {fmt(p.unit_price / 100)}</span>
+                        <span className="font-body">{p.quantity} {selectedIngredient.unit} × {fmt(p.unit_price)}</span>
                         <span className="text-xs text-muted-foreground ml-2">{p.date}</span>
+                        {p.supplier && <span className="text-xs text-muted-foreground ml-2">({p.supplier})</span>}
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{fmt(p.total_cost / 100)}</span>
+                        <span className="font-medium">{fmt(p.total_cost)}</span>
                         <Button size="sm" variant="ghost" onClick={() => removePurchase(p.id)}><Trash2 className="w-3 h-3" /></Button>
                       </div>
                     </div>
