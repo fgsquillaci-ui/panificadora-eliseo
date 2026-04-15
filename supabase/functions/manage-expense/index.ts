@@ -113,7 +113,7 @@ async function cascadeResync(tx: any, ingredientId: string) {
     UPDATE public.ingredients
     SET stock_actual = ${Number(stockRow.total_stock)},
         costo_unitario = CASE WHEN ${Number(stockRow.total_stock)} > 0
-          THEN ${Number(costRow.avg_cost_cents)}
+          THEN ${Math.round(Number(costRow.avg_cost_cents))}
           ELSE costo_unitario END
     WHERE id = ${ingredientId}
   `;
