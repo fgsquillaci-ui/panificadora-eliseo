@@ -109,11 +109,14 @@ async function cascadeResync(tx: any, ingredientId: string) {
     WHERE ingredient_id = ${ingredientId} AND quantity_remaining > 0
   `;
 
+  const totalStock = Number(stockRow.total_stock);
+  const avgCostCents = Math.round(Number(costRow.avg_cost_cents));
+
   await tx`
     UPDATE public.ingredients
-    SET stock_actual = ${Number(stockRow.total_stock)},
-        costo_unitario = CASE WHEN ${Number(stockRow.total_stock)} > 0
-          THEN ${Math.round(Number(costRow.avg_cost_cents))}
+    SET stock_actual = ${totalStock}::numeric,
+        costo_unitario = CASE WHEN ${totalStock}::numeric > 0
+          THEN ${avgCostCents}
           ELSE costo_unitario END
     WHERE id = ${ingredientId}
   `;
